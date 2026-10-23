@@ -259,6 +259,11 @@ The table below is **auto-generated** from `skills-index.yaml` by `scripts/gener
 | **Futures Position Sizer** | ❌ Not used | ❌ Not used | ❌ Not used | Pure calculation; consumes contrarian-setup-gate's READY_FOR_PLAN report or explicit direction/entry/stop flags; works offline |
 | **IBD Distribution Day Monitor** | ✅ Required | ❌ Not used | ❌ Not used | Financial Modeling Prep API |
 | **Institutional Flow Tracker** | ✅ Required | ❌ Not used | ❌ Not used | Financial Modeling Prep API |
+| **Intraday Alerts** | ❌ Not used | ❌ Not used | ❌ Not used | Free Yahoo Finance chart endpoint, no key (unofficial, delayed, can lag); Free Stooq CSV quotes as an alternative source; intraday-exit-planner plan report for stop, target and flat-by alerts |
+| **Intraday Entry Timer** | ❌ Not used | ❌ Not used | ❌ Not used | Free Yahoo Finance 1-minute and 5-minute bars, no key (unofficial, can lag); intraday-scanner report for the watchlist command |
+| **Intraday Exit Planner** | ❌ Not used | ❌ Not used | ❌ Not used | intraday-entry-timer report, or explicit entry and opening-range flags; Free Yahoo Finance bars, only for an ATR stop |
+| **Intraday Scanner** | ❌ Not used | ❌ Not used | ❌ Not used | Free Yahoo Finance chart and spark endpoints, no key (unofficial, can lag); Nasdaq Trader public symbol directories for the universe |
+| **Intraday Time Machine** | ❌ Not used | ❌ Not used | ❌ Not used | Free Yahoo Finance 60 days of 5-minute bars, no key (unofficial, can lag); intraday-exit-planner plan report, or the plan as flags |
 | **Kanchi Dividend Review Monitor** | 🟡 Optional (Recommended) | ❌ Not used | ❌ Not used | Dividend / price monitoring via FMP |
 | **Kanchi Dividend SOP** | 🟡 Optional (Recommended) | ❌ Not used | ❌ Not used | US dividend stock data via FMP |
 | **Kanchi Dividend US Tax Accounting** | ❌ Not used | ❌ Not used | ❌ Not used | US tax workflow guidance; pure calculation |
@@ -535,7 +540,23 @@ python3 skills/position-sizer/scripts/position_sizer.py \
   --account-size 100000 --risk-pct 1.0 \
   --max-position-pct 10 --max-sector-pct 30 \
   --sector Technology --current-sector-exposure 22
+
+# Intraday mode: one whole-share bracket order from an intraday-exit-planner plan
+python3 skills/position-sizer/scripts/position_sizer.py \
+  --intraday-plan reports/intraday_exit_plan_TSLA_2026-10-19.json \
+  --account-size 5000 --max-loss-usd 50 \
+  --max-position-pct 75 --max-order-usd 4000 --cash-buffer-pct 10
 ```
+
+**Intraday skills (scanner, entry timer, exit planner, time machine, alerts):** No API key required (free Yahoo data, needs `pandas-market-calendars`)
+```bash
+python3 skills/intraday-scanner/scripts/intraday_scanner.py orb --output-dir reports/
+python3 skills/intraday-entry-timer/scripts/intraday_entry.py check TSLA
+python3 skills/intraday-exit-planner/scripts/intraday_exit.py plan --stop or-mid --target 1R
+python3 skills/intraday-time-machine/scripts/intraday_time_machine.py run --until 15:55
+python3 skills/intraday-alerts/scripts/intraday_alerts.py add --from-plan
+```
+Artifacts go to `reports/intraday_*` (each step reads the newest report of the step before), alert rules and quotes to `state/intraday/`.
 
 **Data Quality Checker:** No API key required
 ```bash

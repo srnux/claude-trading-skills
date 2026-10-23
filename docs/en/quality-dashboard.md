@@ -19,7 +19,7 @@ Snapshot as of: `2026-10-17T07:11:43Z`
 
 | Total | production | beta | Knowledge-only | Executable | With tests | Without tests |
 |---:|---:|---:|---:|---:|---:|---:|
-| 74 | 62 | 12 | 3 | 71 | 71 | 0 |
+| 79 | 62 | 17 | 3 | 76 | 76 | 0 |
 
 ## Test coverage
 
@@ -38,7 +38,7 @@ Snapshot as of: `2026-10-17T07:11:43Z`
 | FMP | 29 |
 | FINVIZ | 4 |
 | ALPACA | 2 |
-| other external provider | 8 |
+| other external provider | 13 |
 | offline (no external data source) | 35 |
 
 ## Beta pipeline
@@ -47,6 +47,11 @@ Snapshot as of: `2026-10-17T07:11:43Z`
 |---|---:|
 | `crypto-regime-analyzer` | not yet measured |
 | `fxmacrodata-calendar` | not yet measured |
+| `intraday-alerts` | not yet measured |
+| `intraday-entry-timer` | not yet measured |
+| `intraday-exit-planner` | not yet measured |
+| `intraday-scanner` | not yet measured |
+| `intraday-time-machine` | not yet measured |
 | `manifoldbt-backtester` | not yet measured |
 | `mt5-robot-tester` | not yet measured |
 | `residual-edge-analyzer` | not yet measured |
@@ -91,6 +96,11 @@ Snapshot as of: `2026-10-17T07:11:43Z`
 | **FXMacroData Calendar** (`fxmacrodata-calendar`) | beta | yes | yes | 96.0% |
 | **IBD Distribution Day Monitor** (`ibd-distribution-day-monitor`) | production | yes | yes | 98.7% |
 | **Institutional Flow Tracker** (`institutional-flow-tracker`) | production | yes | yes | 75.7% |
+| **Intraday Alerts** (`intraday-alerts`) | beta | yes | yes | not yet measured |
+| **Intraday Entry Timer** (`intraday-entry-timer`) | beta | yes | yes | not yet measured |
+| **Intraday Exit Planner** (`intraday-exit-planner`) | beta | yes | yes | not yet measured |
+| **Intraday Scanner** (`intraday-scanner`) | beta | yes | yes | not yet measured |
+| **Intraday Time Machine** (`intraday-time-machine`) | beta | yes | yes | not yet measured |
 | **Kanchi Dividend Review Monitor** (`kanchi-dividend-review-monitor`) | production | yes | yes | 82.2% |
 | **Kanchi Dividend SOP** (`kanchi-dividend-sop`) | production | yes | yes | 76.2% |
 | **Kanchi Dividend US Tax Accounting** (`kanchi-dividend-us-tax-accounting`) | production | yes | yes | 70.5% |

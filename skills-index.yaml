@@ -918,6 +918,136 @@ skills:
   outputs:
   - flow_analysis_report
   workflows: []
+- id: intraday-alerts
+  display_name: Intraday Alerts
+  category: advanced-satellite
+  status: beta
+  operational_role:
+    type: standalone
+    rationale: "Invoked directly while a day trade is open, its rules follow the intraday-exit-planner plan."
+  summary: Price, stop, target, flat-by-close and opening-bell alerts for an open day trade, on the shared NYSE calendar and free delayed quotes.
+  timeframe: daily
+  difficulty: intermediate
+  integrations:
+  - id: yahoo_chart
+    type: market_data
+    requirement: required
+    note: Free Yahoo Finance chart endpoint, no key (unofficial, delayed, can lag)
+  - id: stooq_csv
+    type: market_data
+    requirement: optional
+    note: Free Stooq CSV quotes as an alternative source
+  - id: exit_plan_json
+    type: local_file
+    requirement: recommended
+    note: intraday-exit-planner plan report for stop, target and flat-by alerts
+  inputs:
+  - intraday_exit_plan
+  - alert_rules
+  outputs:
+  - intraday_alert_rules
+  - intraday_alert_rings
+  - intraday_prices
+  workflows: []
+- id: intraday-entry-timer
+  display_name: Intraday Entry Timer
+  category: advanced-satellite
+  status: beta
+  operational_role:
+    type: standalone
+    rationale: "Invoked directly on a chosen ticker during the session, hands its report to intraday-exit-planner."
+  summary: Watch a day-trading setup bar by bar and call the entry on the first closed bar above the opening-range high or a level.
+  timeframe: daily
+  difficulty: intermediate
+  integrations:
+  - id: yahoo_chart
+    type: market_data
+    requirement: required
+    note: Free Yahoo Finance 1-minute and 5-minute bars, no key (unofficial, can lag)
+  - id: scanner_report_json
+    type: local_file
+    requirement: optional
+    note: intraday-scanner report for the watchlist command
+  inputs:
+  - ticker
+  - intraday_scanner_report
+  outputs:
+  - intraday_entry_signal
+  workflows: []
+- id: intraday-exit-planner
+  display_name: Intraday Exit Planner
+  category: advanced-satellite
+  status: beta
+  operational_role:
+    type: standalone
+    rationale: "Invoked directly right after an entry trigger, its plan feeds intraday-time-machine and position-sizer."
+  summary: Set the stop, the target and the flat-by time of a long day trade before the entry, with refusals for plans that make no sense.
+  timeframe: event-driven
+  difficulty: intermediate
+  integrations:
+  - id: entry_signal_json
+    type: local_file
+    requirement: recommended
+    note: intraday-entry-timer report, or explicit entry and opening-range flags
+  - id: yahoo_chart
+    type: market_data
+    requirement: optional
+    note: Free Yahoo Finance bars, only for an ATR stop
+  inputs:
+  - intraday_entry_signal
+  - entry_price
+  outputs:
+  - intraday_exit_plan
+  workflows: []
+- id: intraday-scanner
+  display_name: Intraday Scanner
+  category: advanced-satellite
+  status: beta
+  operational_role:
+    type: standalone
+    rationale: "Invoked directly before the open and after the opening range, no canonical intraday workflow manifest yet."
+  summary: Scan thousands of US stock charts for opening-range breakouts and pre-market daily setups using free keyless data.
+  timeframe: daily
+  difficulty: intermediate
+  integrations:
+  - id: yahoo_chart
+    type: market_data
+    requirement: required
+    note: Free Yahoo Finance chart and spark endpoints, no key (unofficial, can lag)
+  - id: nasdaq_trader_symdir
+    type: web
+    requirement: recommended
+    note: Nasdaq Trader public symbol directories for the universe
+  inputs:
+  - symbol_universe
+  - ticker_list
+  outputs:
+  - intraday_scanner_report
+  workflows: []
+- id: intraday-time-machine
+  display_name: Intraday Time Machine
+  category: advanced-satellite
+  status: beta
+  operational_role:
+    type: standalone
+    rationale: "Invoked directly on one exit plan as a reality check before sizing."
+  summary: Replay a planned day trade 10,000 times from the stock's own last 60 days of 5-minute bars plus the same rule on every past session.
+  timeframe: event-driven
+  difficulty: advanced
+  integrations:
+  - id: yahoo_chart
+    type: market_data
+    requirement: required
+    note: Free Yahoo Finance 60 days of 5-minute bars, no key (unofficial, can lag)
+  - id: exit_plan_json
+    type: local_file
+    requirement: recommended
+    note: intraday-exit-planner plan report, or the plan as flags
+  inputs:
+  - intraday_exit_plan
+  outputs:
+  - intraday_replay_report
+  workflows: []
 - id: kanchi-dividend-review-monitor
   display_name: Kanchi Dividend Review Monitor
   category: core-portfolio
@@ -1454,9 +1584,11 @@ skills:
   - entry_price
   - stop_price
   - account_size
+  - intraday_exit_plan
   outputs:
   - share_count
   - risk_amount
+  - bracket_order_proposal
   workflows:
   - multi-asset-opportunity-daily
   - stockbee-ep-daily

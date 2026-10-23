@@ -262,6 +262,11 @@ FMP / FINVIZ / Alpaca の有料サブスクをまだ持っていない場合は�
 |---|---|---|---|---|
 | **Earnings Trade Analyzer** (`earnings-trade-analyzer`) | Analyze recent post-earnings stocks using a 5-factor scoring system (Gap Size, Pre-Earnings Trend, Volume Trend, MA200 Position, MA50 Position). | `fmp` **required** | workflow_step | production |
 | **Institutional Flow Tracker** (`institutional-flow-tracker`) | Use this skill to track institutional investor ownership changes and portfolio flows using 13F filings data. | `fmp` **required** | standalone | production |
+| **Intraday Alerts** (`intraday-alerts`) | Price, stop, target, flat-by-close and opening-bell alerts for an open day trade, on the shared NYSE calendar and free delayed quotes. | `yahoo_chart` **required**, `stooq_csv` optional, `exit_plan_json` _recommended_ | standalone | beta |
+| **Intraday Entry Timer** (`intraday-entry-timer`) | Watch a day-trading setup bar by bar and call the entry on the first closed bar above the opening-range high or a level. | `yahoo_chart` **required**, `scanner_report_json` optional | standalone | beta |
+| **Intraday Exit Planner** (`intraday-exit-planner`) | Set the stop, the target and the flat-by time of a long day trade before the entry, with refusals for plans that make no sense. | `entry_signal_json` _recommended_, `yahoo_chart` optional | standalone | beta |
+| **Intraday Scanner** (`intraday-scanner`) | Scan thousands of US stock charts for opening-range breakouts and pre-market daily setups using free keyless data. | `yahoo_chart` **required**, `nasdaq_trader_symdir` _recommended_ | standalone | beta |
+| **Intraday Time Machine** (`intraday-time-machine`) | Replay a planned day trade 10,000 times from the stock's own last 60 days of 5-minute bars plus the same rule on every past session. | `yahoo_chart` **required**, `exit_plan_json` _recommended_ | standalone | beta |
 | **Options Strategy Advisor** (`options-strategy-advisor`) | Options trading strategy analysis and simulation tool. | `fmp` optional | standalone | production |
 | **Pair Trade Screener** (`pair-trade-screener`) | Statistical arbitrage tool for identifying and analyzing pair trading opportunities. | `fmp` **required** | standalone | production |
 | **Parabolic Short Trade Planner** (`parabolic-short-trade-planner`) | Screen US equities for parabolic exhaustion patterns and generate conditional pre-market short plans, then evaluate intraday trigger fires from live 5-min bars. | `fmp` **required**, `alpaca` optional | standalone | production |
@@ -317,6 +322,16 @@ Core + Satellite の主導線は上記の「おすすめの始め方」にまと
 3. **テクニカルアナリスト**を使用して、週足チャートパターンとサポート/レジスタンスレベルを確認
 4. PEADスクリーナーの流動性フィルタでポジションサイジングの実現可能性を確認
 5. SIGNAL_READY銘柄を監視し、明確なストップロス（赤キャンドル安値）と2Rターゲットでブレイクアウトエントリー
+
+### 日中オープニングレンジ・ブレイクアウト（アドバンスト・サテライト）
+クイックスタートの概要（正式なワークフローマニフェストは未作成）。無料・キー不要のYahooデータ、ロングのみ、スキルが注文を出すことはありません。
+1. **ドローダウン・サーキットブレーカー**で本日の新規リスクが許可されているか確認
+2. **Intraday Scanner**で寄り付き前（日足セットアップ）とニューヨーク時間9時50分以降（オープニングレンジ・ブレイクアウト）をスキャン
+3. **Intraday Entry Timer**でオープニングレンジ高値を上回って確定した最初のバーを待つ
+4. **Intraday Exit Planner**で買う前にストップ、目標、フラット時刻を設定
+5. **Intraday Time Machine**で計画を10,000回再生し、同じルールを過去の全セッションで再実行
+6. **ポジションサイザー**の日中モード（`--intraday-plan`）で、1取引の最大損失内で整数株のブラケット注文1件をサイジング
+7. 注文前に**Pre-Trade Discipline Gate**を通し、**Intraday Alerts**でストップ、目標、大引け前フラットを通知
 
 ### かんち式配当ワークフロー（米国株）
 1. **かんち式配当SOP**で5ステップ選定と買い条件を作成

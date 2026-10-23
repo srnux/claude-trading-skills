@@ -10,7 +10,7 @@ permalink: /en/skill-catalog/
 # Skill Catalog
 {: .no_toc }
 
-A comprehensive catalog of all 74 Claude Trading Skills organized by category. Badge indicators show API requirements at a glance.
+A comprehensive catalog of all 79 Claude Trading Skills organized by category. Badge indicators show API requirements at a glance.
 {: .fs-6 .fw-300 }
 
 > Use English skill names ("CANSLIM", "VCP", "FinViz", etc.) for best search results on this page.
@@ -74,6 +74,11 @@ A comprehensive catalog of all 74 Claude Trading Skills organized by category. B
 | `fxmacrodata-calendar` | `standalone` | Fetches official macro calendar data directly for event-risk planning. |
 | `ibd-distribution-day-monitor` | `standalone` | Runs an independent distribution-day risk assessment for QQQ or SPY. |
 | `institutional-flow-tracker` | `standalone` | Produces an independent institutional ownership and flow assessment on demand. |
+| `intraday-alerts` | `standalone` | Invoked directly while a day trade is open, its rules follow the intraday-exit-planner plan. |
+| `intraday-entry-timer` | `standalone` | Invoked directly on a chosen ticker during the session, hands its report to intraday-exit-planner. |
+| `intraday-exit-planner` | `standalone` | Invoked directly right after an entry trigger, its plan feeds intraday-time-machine and position-sizer. |
+| `intraday-scanner` | `standalone` | Invoked directly before the open and after the opening range, no canonical intraday workflow manifest yet. |
+| `intraday-time-machine` | `standalone` | Invoked directly on one exit plan as a reality check before sizing. |
 | `kanchi-dividend-review-monitor` | `workflow_step` | — |
 | `kanchi-dividend-sop` | `workflow_step` | — |
 | `kanchi-dividend-us-tax-accounting` | `workflow_step` | — |
@@ -191,7 +196,7 @@ A comprehensive catalog of all 74 Claude Trading Skills organized by category. B
 | **[Trade Performance Coach]({{ '/en/skills/trade-performance-coach/' | relative_url }})** | Post-trade coach: reviews closed trades, partial exits, and monthly aggregates across 5 axes (process, risk, execution, behavior patterns, review quality), emits OK/WARN/REVIEW_REQUIRED/RULE_VIOLATION/COOL_DOWN verdict and next-session operating rules with human decision gate. Beta. | <span class="badge badge-free">No API</span> |
 | **[Drawdown Circuit Breaker]({{ '/en/skills/drawdown-circuit-breaker/' | relative_url }})** | Account-level risk gate that reads trader-memory-core state and returns TRADING_ALLOWED / COOLDOWN / HALTED from realized P&L, losing-streak, and weekly/monthly drawdown rules | <span class="badge badge-free">No API</span> |
 | **[Weekly Performance Digest]({{ '/en/skills/weekly-performance-digest/' | relative_url }})** | Aggregate the week's closed trades into win rate, expectancy, profit factor, R-multiple, and MAE/MFE, with win/loss pattern analysis by source skill, exit reason, thesis type, sector, and mechanism. Pure local calculation | <span class="badge badge-free">No API</span> |
-| **[Position Sizer]({{ '/en/skills/position-sizer/' | relative_url }})** | Risk-based position sizing using Fixed Fractional, ATR-based, and Kelly Criterion methods. Portfolio constraints (max position %, max sector %). Works offline | <span class="badge badge-free">No API</span> |
+| **[Position Sizer]({{ '/en/skills/position-sizer/' | relative_url }})** | Risk-based position sizing using Fixed Fractional, ATR-based, and Kelly Criterion methods. Portfolio constraints (max position %, max sector %). Intraday mode sizes an intraday-exit-planner plan into one whole-share bracket order. Works offline | <span class="badge badge-free">No API</span> |
 | **[Futures Position Sizer]({{ '/en/skills/futures-position-sizer/' | relative_url }})** | Contract-based futures position sizing from direction/entry/stop using a verified 23-market contract-spec table (multiplier, tick size, tick value). Explicit flags or contrarian-setup-gate READY_FOR_PLAN handoff. Beta. Works offline | <span class="badge badge-free">No API</span> |
 | **[Breakout Trade Planner]({{ '/en/skills/breakout-trade-planner/' | relative_url }})** | Generates Minervini-style breakout trade plans from VCP screener output. Worst-case entry Gate, stop-limit bracket templates (pre_place / post_confirm), portfolio heat management | <span class="badge badge-free">No API</span> |
 | **[Parabolic Short Trade Planner]({{ '/en/skills/parabolic-short-trade-planner/' | relative_url }})** | Daily Parabolic Short screener (5-factor weighted score) plus pre-market plan generator that emits three conditional triggers per candidate (5-min ORL break, first red 5-min, VWAP fail). Alpaca ETB-only short check via `requests` (no SDK), SEC Rule 201 SSR tracker, blocking vs advisory manual confirmation reasons | <span class="badge badge-api">FMP Required</span> <span class="badge badge-optional">Alpaca Optional</span> |
@@ -247,6 +252,20 @@ A comprehensive catalog of all 74 Claude Trading Skills organized by category. B
 
 ---
 
+## 8. Intraday Trading
+
+Advanced satellite: one long day trade from the scan to flat by the close, on free keyless Yahoo data. Nothing places an order. Most day traders lose money.
+
+| Skill | Description | API Requirements |
+|-------|-------------|------------------|
+| **[Intraday Scanner]({{ '/en/skills/intraday-scanner/' | relative_url }})** | Scans thousands of US charts for opening-range breakouts (5-minute bars, two-stage confirm) and pre-market daily setups (20-day breakout, bull flag, MA20 reclaim, oversold). Universe from Nasdaq Trader's symbol files. Beta | <span class="badge badge-free">No API</span> |
+| **[Intraday Entry Timer]({{ '/en/skills/intraday-entry-timer/' | relative_url }})** | Watches a setup bar by bar and calls the entry on the first closed bar above the opening-range high or a level, with an optional volume check and entry window. Long side only. Beta | <span class="badge badge-free">No API</span> |
+| **[Intraday Exit Planner]({{ '/en/skills/intraday-exit-planner/' | relative_url }})** | Sets the stop (opening-range midpoint, low, price, percent or ATR), the target (R multiple or price) and the flat-by time before the entry, and refuses plans that make no sense. Beta | <span class="badge badge-free">No API</span> |
+| **[Intraday Time Machine]({{ '/en/skills/intraday-time-machine/' | relative_url }})** | Replays a planned day trade 10,000 times from the stock's own last 60 days of 5-minute bars, re-runs the same rule on every past session, and prints the odds and an honest verdict. Seeded and repeatable. Beta | <span class="badge badge-free">No API</span> |
+| **[Intraday Alerts]({{ '/en/skills/intraday-alerts/' | relative_url }})** | Stop, target, flat-by-close, percent-move and opening-bell alerts on free delayed quotes, each ringing once, with the NYSE clock from the shared calendar. Beta | <span class="badge badge-free">No API</span> |
+
+---
+
 ## Which Skill Should I Use?
 
 ### I want to find growth stocks
@@ -292,6 +311,15 @@ A comprehensive catalog of all 74 Claude Trading Skills organized by category. B
 - **PEAD Screener** -- Post-earnings pullback-to-breakout pattern detection
 - **Earnings Calendar** -- Upcoming earnings dates with timing information
 
+### I want to day trade one stock at a time
+
+- **[Intraday Scanner]({{ '/en/skills/intraday-scanner/' | relative_url }})** -- Opening-range breakouts and pre-market setups
+- **[Intraday Entry Timer]({{ '/en/skills/intraday-entry-timer/' | relative_url }})** -- The closed bar that confirms the setup
+- **[Intraday Exit Planner]({{ '/en/skills/intraday-exit-planner/' | relative_url }})** -- Stop, target and flat-by time before the entry
+- **[Intraday Time Machine]({{ '/en/skills/intraday-time-machine/' | relative_url }})** -- Replay the plan before risking a dollar
+- **[Position Sizer]({{ '/en/skills/position-sizer/' | relative_url }})** -- Intraday mode: one bracket order under a max loss per trade
+- **[Intraday Alerts]({{ '/en/skills/intraday-alerts/' | relative_url }})** -- Stop, target and flat-by-close alerts
+
 ### I want to validate a strategy
 
 - **[Backtest Expert]({{ '/en/skills/backtest-expert/' | relative_url }})** -- Professional-grade backtesting framework
@@ -333,6 +361,11 @@ A comprehensive catalog of all 74 Claude Trading Skills organized by category. B
 | Futures Position Sizer | -- | -- | -- |
 | IBD Distribution Day Monitor | Required | -- | -- |
 | Institutional Flow Tracker | Required | -- | -- |
+| Intraday Alerts | -- | -- | -- |
+| Intraday Entry Timer | -- | -- | -- |
+| Intraday Exit Planner | -- | -- | -- |
+| Intraday Scanner | -- | -- | -- |
+| Intraday Time Machine | -- | -- | -- |
 | Kanchi Dividend Review Monitor | Recommended | -- | -- |
 | Kanchi Dividend SOP | Recommended | -- | -- |
 | Kanchi Dividend US Tax Accounting | -- | -- | -- |

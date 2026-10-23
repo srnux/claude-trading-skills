@@ -200,6 +200,49 @@ Example:
 
 ---
 
+## Intraday Bracket Sizing (Day Trades)
+
+### Concept
+
+A day trade has a fixed stop and target before the entry (set by `intraday-exit-planner`), and it must be flat by the close. Size it in **dollars of loss at the stop**, not as a percent of equity alone: a fixed max loss per trade (for example $50 on a $5,000 day-trading budget) keeps every losing trade the same size, whatever the stock's price or the stop's distance.
+
+### Formula
+
+```
+risk_per_share = sizing_price - stop
+shares = min(
+    floor(max_loss_usd / risk_per_share),          # max loss
+    floor(account * max_position_pct / sizing_price),  # position cap
+    floor(max_order_usd / sizing_price),           # max order
+    floor((cash - cash_buffer) / sizing_price),    # cash
+)
+```
+
+All in integer cents, whole shares only (a bracket order takes no fractions).
+
+### The Sizing Price
+
+- A market order is sized at the HIGHER of the plan's entry and a fresh quote (under 15 minutes old). A price that ran up since the plan means a bigger loss at the same stop. A lower quote never shrinks the risk.
+- A limit order is sized at its limit price.
+- Reward:risk is recomputed at the sizing price. A plan that was 1R at the trigger can be 0.44R ten minutes later: that is a refusal, not a trade.
+
+### Refusals Instead of Smaller Orders
+
+When one share already risks more than the max loss, the answer is no order. Shrinking the stop to fit more shares, or quietly sizing down to a fraction of a share, changes the trade the plan was built on.
+
+### Example
+
+TSLA, 2026-10-19: entry 364.18, stop 358.32 (risk 5.86), target 370.04. $5,000 account, 10% cash buffer, $50 max loss, 75% position cap, $4,000 max order.
+
+| limit | math | shares |
+| --- | --- | --- |
+| max loss | 50 / 5.86 | **8 (binds)** |
+| position cap | 3,750 / 364.18 | 10 |
+| max order | 4,000 / 364.18 | 10 |
+| cash | 4,500 / 364.18 | 12 |
+
+8 shares = $2,913.44. Loss at the stop: 8 x 5.86 = $46.88. A stop at 300.00 would risk 64.18 a share, more than $50: no order.
+
 ## Portfolio Constraints
 
 ### Maximum Position Size

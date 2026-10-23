@@ -10,7 +10,7 @@ permalink: /ja/skill-catalog/
 # スキル一覧
 {: .no_toc }
 
-全74個のClaude Trading Skillsをカテゴリ別に紹介します。各スキルのAPI要件バッジで、利用に必要な外部サービスをすぐに確認できます。
+全79個のClaude Trading Skillsをカテゴリ別に紹介します。各スキルのAPI要件バッジで、利用に必要な外部サービスをすぐに確認できます。
 {: .fs-6 .fw-300 }
 
 > 検索は英語スキル名（"CANSLIM", "VCP", "FinViz"等）での検索を推奨します。日本語の部分一致検索は制限があります。
@@ -74,6 +74,11 @@ permalink: /ja/skill-catalog/
 | `fxmacrodata-calendar` | `standalone` | Fetches official macro calendar data directly for event-risk planning. |
 | `ibd-distribution-day-monitor` | `standalone` | Runs an independent distribution-day risk assessment for QQQ or SPY. |
 | `institutional-flow-tracker` | `standalone` | Produces an independent institutional ownership and flow assessment on demand. |
+| `intraday-alerts` | `standalone` | Invoked directly while a day trade is open, its rules follow the intraday-exit-planner plan. |
+| `intraday-entry-timer` | `standalone` | Invoked directly on a chosen ticker during the session, hands its report to intraday-exit-planner. |
+| `intraday-exit-planner` | `standalone` | Invoked directly right after an entry trigger, its plan feeds intraday-time-machine and position-sizer. |
+| `intraday-scanner` | `standalone` | Invoked directly before the open and after the opening range, no canonical intraday workflow manifest yet. |
+| `intraday-time-machine` | `standalone` | Invoked directly on one exit plan as a reality check before sizing. |
 | `kanchi-dividend-review-monitor` | `workflow_step` | — |
 | `kanchi-dividend-sop` | `workflow_step` | — |
 | `kanchi-dividend-us-tax-accounting` | `workflow_step` | — |
@@ -191,7 +196,7 @@ permalink: /ja/skill-catalog/
 | **[Trade Performance Coach]({{ '/ja/skills/trade-performance-coach/' | relative_url }})** | クローズドトレード・部分クローズ・月次集計をプロセス／リスク／執行／行動パターン／レビュー品質の5軸でレビューし、OK/WARN/REVIEW_REQUIRED/RULE_VIOLATION/COOL_DOWN の verdict と次セッション運用ルール、人間判断ゲートを生成するポストトレードコーチ。Beta。 | <span class="badge badge-free">API不要</span> |
 | **[Drawdown Circuit Breaker]({{ '/ja/skills/drawdown-circuit-breaker/' | relative_url }})** | trader-memory-coreの状態を読み、実現損益・連敗・週次/月次ドローダウンから TRADING_ALLOWED / COOLDOWN / HALTED を返す口座レベルの新規リスクゲート | <span class="badge badge-free">API不要</span> |
 | **[Weekly Performance Digest]({{ '/ja/skills/weekly-performance-digest/' | relative_url }})** | クローズドトレードから週次パフォーマンスサマリを生成。勝率・期待値・プロフィットファクター・Rマルチプル・MAE/MFE と、ソーススキル／エグジット理由／テシスタイプ／セクター／メカニズム別の勝敗パターン分析を出力。ローカル計算のみ | <span class="badge badge-free">API不要</span> |
-| **[Position Sizer]({{ '/ja/skills/position-sizer/' | relative_url }})** | Fixed Fractional、ATRベース、Kelly Criterionの3手法でリスクベースポジションサイズを計算 | <span class="badge badge-free">API不要</span> |
+| **[Position Sizer]({{ '/ja/skills/position-sizer/' | relative_url }})** | Fixed Fractional、ATRベース、Kelly Criterionの3手法でリスクベースポジションサイズを計算。日中モードではintraday-exit-plannerの計画を整数株のブラケット注文1件にサイジング | <span class="badge badge-free">API不要</span> |
 | **[Futures Position Sizer]({{ '/ja/skills/futures-position-sizer/' | relative_url }})** | 方向・エントリー・ストップから先物のコントラクト数を計算。検証済みの23銘柄契約仕様テーブル（乗数・ティックサイズ・ティック価値）を使用し、明示フラグまたはcontrarian-setup-gateのREADY_FOR_PLAN引き継ぎに対応。Beta。オフラインで動作 | <span class="badge badge-free">API不要</span> |
 | **[Breakout Trade Planner]({{ '/ja/skills/breakout-trade-planner/' | relative_url }})** | VCPスクリーナー出力からミネルヴィニ式ブレイクアウトトレードプランを生成。worst-case entryベースのGate、stop-limit bracketテンプレート（pre_place / post_confirm）、ポートフォリオヒート管理 | <span class="badge badge-free">API不要</span> |
 | **[Parabolic Short Trade Planner]({{ '/ja/skills/parabolic-short-trade-planner/' | relative_url }})** | Parabolic Short 候補の日次スクリーナー（5因子加重スコア）と寄り前プラン生成器。候補ごとに3種類のトリガー（5min ORL ブレイク / First Red 5-min / VWAP fail）を条件付きプランとして出力。Alpaca ETB-only ショート確認は `requests` 直叩き（SDK 非依存）、SEC Rule 201 SSR トラッカー、blocking / advisory 分離型 manual confirmation | <span class="badge badge-api">FMP必須</span> <span class="badge badge-optional">Alpaca任意</span> |
@@ -247,6 +252,20 @@ permalink: /ja/skill-catalog/
 
 ---
 
+## 8. デイトレード
+
+アドバンスト・サテライト。スキャンから大引けのフラットまで、ロングのデイトレード1件を無料・キー不要のYahooデータで扱います。注文は一切出しません。デイトレーダーの多くは損失を出します。
+
+| スキル | 説明 | API要件 |
+|--------|------|---------|
+| **[Intraday Scanner]({{ '/ja/skills/intraday-scanner/' | relative_url }})** | 数千の米国株チャートからオープニングレンジ・ブレイクアウト（5分足、2段階確認）と寄り付き前の日足セットアップ（20日高値ブレイク、ブルフラッグ、20日線回復、売られ過ぎ）を抽出。ユニバースはNasdaq Traderのシンボルファイルから作成。Beta | <span class="badge badge-free">API不要</span> |
+| **[Intraday Entry Timer]({{ '/ja/skills/intraday-entry-timer/' | relative_url }})** | セットアップをバーごとに監視し、オープニングレンジ高値または指定水準を上回って確定した最初のバーでエントリーを判定。出来高条件とエントリー時間帯に対応。ロングのみ。Beta | <span class="badge badge-free">API不要</span> |
+| **[Intraday Exit Planner]({{ '/ja/skills/intraday-exit-planner/' | relative_url }})** | エントリー前にストップ（レンジ中値、安値、価格、パーセント、ATR）、目標（R倍数または価格）、フラット時刻を設定し、成り立たない計画は拒否。Beta | <span class="badge badge-free">API不要</span> |
+| **[Intraday Time Machine]({{ '/ja/skills/intraday-time-machine/' | relative_url }})** | 計画したデイトレードを直近60日の5分足から10,000回再生し、同じルールを過去の全セッションで再実行して確率と判定を表示。シード固定で再現可能。Beta | <span class="badge badge-free">API不要</span> |
+| **[Intraday Alerts]({{ '/ja/skills/intraday-alerts/' | relative_url }})** | 無料の遅延クォートでストップ、目標、大引け前フラット、変動率、寄り付きのアラートを各1回通知。NYSEの時計は共有カレンダーを使用。Beta | <span class="badge badge-free">API不要</span> |
+
+---
+
 ## どのスキルを使うべき？
 
 目的に応じた推奨スキルを紹介します。
@@ -281,6 +300,15 @@ permalink: /ja/skill-catalog/
 - **Earnings Trade Analyzer** - 決算リアクションを5要素でスコアリング
 - **PEAD Screener** - 決算後のプルバック→ブレイクアウトパターンを検出
 - **Earnings Calendar** - 今後の決算日を時系列で把握
+
+### 1銘柄ずつデイトレードしたい
+
+- **[Intraday Scanner]({{ '/ja/skills/intraday-scanner/' | relative_url }})** - オープニングレンジ・ブレイクアウトと寄り付き前のセットアップ
+- **[Intraday Entry Timer]({{ '/ja/skills/intraday-entry-timer/' | relative_url }})** - セットアップを確定させるバーを判定
+- **[Intraday Exit Planner]({{ '/ja/skills/intraday-exit-planner/' | relative_url }})** - エントリー前にストップ、目標、フラット時刻を設定
+- **[Intraday Time Machine]({{ '/ja/skills/intraday-time-machine/' | relative_url }})** - 資金を投じる前に計画を再生
+- **[Position Sizer]({{ '/ja/skills/position-sizer/' | relative_url }})** - 日中モード：1取引の最大損失内でブラケット注文1件
+- **[Intraday Alerts]({{ '/ja/skills/intraday-alerts/' | relative_url }})** - ストップ、目標、大引け前フラットのアラート
 
 ### 戦略を検証したい
 
@@ -330,6 +358,11 @@ permalink: /ja/skill-catalog/
 | Futures Position Sizer | - | - | - |
 | IBD Distribution Day Monitor | 必須 | - | - |
 | Institutional Flow Tracker | 必須 | - | - |
+| Intraday Alerts | - | - | - |
+| Intraday Entry Timer | - | - | - |
+| Intraday Exit Planner | - | - | - |
+| Intraday Scanner | - | - | - |
+| Intraday Time Machine | - | - | - |
 | Kanchi Dividend Review Monitor | 推奨 | - | - |
 | Kanchi Dividend SOP | 推奨 | - | - |
 | Kanchi Dividend US Tax Accounting | - | - | - |

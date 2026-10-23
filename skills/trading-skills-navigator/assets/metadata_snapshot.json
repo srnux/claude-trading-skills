@@ -579,6 +579,136 @@
       "timeframe": "research"
     },
     {
+      "category": "advanced-satellite",
+      "difficulty": "intermediate",
+      "display_name": "Intraday Alerts",
+      "id": "intraday-alerts",
+      "integrations": [
+        {
+          "id": "yahoo_chart",
+          "requirement": "required",
+          "type": "market_data"
+        },
+        {
+          "id": "stooq_csv",
+          "requirement": "optional",
+          "type": "market_data"
+        },
+        {
+          "id": "exit_plan_json",
+          "requirement": "recommended",
+          "type": "local_file"
+        }
+      ],
+      "operational_role": {
+        "rationale": "Invoked directly while a day trade is open, its rules follow the intraday-exit-planner plan.",
+        "type": "standalone"
+      },
+      "status": "beta",
+      "summary": "Price, stop, target, flat-by-close and opening-bell alerts for an open day trade, on the shared NYSE calendar and free delayed quotes.",
+      "timeframe": "daily"
+    },
+    {
+      "category": "advanced-satellite",
+      "difficulty": "intermediate",
+      "display_name": "Intraday Entry Timer",
+      "id": "intraday-entry-timer",
+      "integrations": [
+        {
+          "id": "yahoo_chart",
+          "requirement": "required",
+          "type": "market_data"
+        },
+        {
+          "id": "scanner_report_json",
+          "requirement": "optional",
+          "type": "local_file"
+        }
+      ],
+      "operational_role": {
+        "rationale": "Invoked directly on a chosen ticker during the session, hands its report to intraday-exit-planner.",
+        "type": "standalone"
+      },
+      "status": "beta",
+      "summary": "Watch a day-trading setup bar by bar and call the entry on the first closed bar above the opening-range high or a level.",
+      "timeframe": "daily"
+    },
+    {
+      "category": "advanced-satellite",
+      "difficulty": "intermediate",
+      "display_name": "Intraday Exit Planner",
+      "id": "intraday-exit-planner",
+      "integrations": [
+        {
+          "id": "entry_signal_json",
+          "requirement": "recommended",
+          "type": "local_file"
+        },
+        {
+          "id": "yahoo_chart",
+          "requirement": "optional",
+          "type": "market_data"
+        }
+      ],
+      "operational_role": {
+        "rationale": "Invoked directly right after an entry trigger, its plan feeds intraday-time-machine and position-sizer.",
+        "type": "standalone"
+      },
+      "status": "beta",
+      "summary": "Set the stop, the target and the flat-by time of a long day trade before the entry, with refusals for plans that make no sense.",
+      "timeframe": "event-driven"
+    },
+    {
+      "category": "advanced-satellite",
+      "difficulty": "intermediate",
+      "display_name": "Intraday Scanner",
+      "id": "intraday-scanner",
+      "integrations": [
+        {
+          "id": "yahoo_chart",
+          "requirement": "required",
+          "type": "market_data"
+        },
+        {
+          "id": "nasdaq_trader_symdir",
+          "requirement": "recommended",
+          "type": "web"
+        }
+      ],
+      "operational_role": {
+        "rationale": "Invoked directly before the open and after the opening range, no canonical intraday workflow manifest yet.",
+        "type": "standalone"
+      },
+      "status": "beta",
+      "summary": "Scan thousands of US stock charts for opening-range breakouts and pre-market daily setups using free keyless data.",
+      "timeframe": "daily"
+    },
+    {
+      "category": "advanced-satellite",
+      "difficulty": "advanced",
+      "display_name": "Intraday Time Machine",
+      "id": "intraday-time-machine",
+      "integrations": [
+        {
+          "id": "yahoo_chart",
+          "requirement": "required",
+          "type": "market_data"
+        },
+        {
+          "id": "exit_plan_json",
+          "requirement": "recommended",
+          "type": "local_file"
+        }
+      ],
+      "operational_role": {
+        "rationale": "Invoked directly on one exit plan as a reality check before sizing.",
+        "type": "standalone"
+      },
+      "status": "beta",
+      "summary": "Replay a planned day trade 10,000 times from the stock's own last 60 days of 5-minute bars plus the same rule on every past session.",
+      "timeframe": "event-driven"
+    },
+    {
       "category": "core-portfolio",
       "difficulty": "beginner",
       "display_name": "Kanchi Dividend Review Monitor",

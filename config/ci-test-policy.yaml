@@ -35,6 +35,26 @@ matrix:
     requirements:
     - pandas-market-calendars==5.2.2
     reason: Exercise session-aware earnings-calendar empty-response classification.
+  intraday-alerts:
+    requirements:
+    - pandas-market-calendars==5.2.2
+    reason: Exercise the pinned shared cash-equity calendar contract.
+  intraday-entry-timer:
+    requirements:
+    - pandas-market-calendars==5.2.2
+    reason: Exercise the pinned shared cash-equity calendar contract.
+  intraday-exit-planner:
+    requirements:
+    - pandas-market-calendars==5.2.2
+    reason: Exercise the pinned shared cash-equity calendar contract.
+  intraday-scanner:
+    requirements:
+    - pandas-market-calendars==5.2.2
+    reason: Exercise the pinned shared cash-equity calendar contract.
+  intraday-time-machine:
+    requirements:
+    - pandas-market-calendars==5.2.2
+    reason: Exercise the pinned shared cash-equity calendar contract.
   market-environment-analysis:
     requirements:
     - pandas-market-calendars==5.2.2
