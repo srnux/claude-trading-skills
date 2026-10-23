@@ -3,6 +3,10 @@
 Calculates risk-based position sizes using Fixed Fractional, ATR-based,
 or Kelly Criterion methods. Applies portfolio constraints (max position %,
 max sector %) and outputs a final recommended share count.
+
+Intraday mode (--intraday-plan) sizes one intraday-exit-planner plan into one
+whole-share bracket order inside a max loss per trade, a position cap, a max
+order and the cash left after a buffer. See intraday_mode.py.
 """
 
 from __future__ import annotations
@@ -12,8 +16,20 @@ import json
 import os
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import ROUND_FLOOR, Decimal, localcontext
+
+from intraday_mode import (
+    IntradayLimits,
+    IntradaySizingError,
+    fresh_price,
+    load_plan,
+    load_prices,
+    new_york_date,
+    parse_utc,
+    size_intraday,
+)
+from intraday_mode import markdown_lines as intraday_markdown_lines
 
 
 @dataclass
@@ -324,7 +340,9 @@ def generate_markdown_report(result: dict) -> str:
         lines.append(f"- **{k}:** {v}")
     lines.append("")
 
-    if result["mode"] == "budget":
+    if result["mode"] == "intraday":
+        lines.extend(intraday_markdown_lines(result))
+    elif result["mode"] == "budget":
         lines.append("## Kelly Criterion")
         kelly = result["calculations"]["kelly"]
         lines.append("- Full Kelly: {}%".format(kelly["kelly_pct"]))
@@ -447,13 +465,169 @@ def build_parser() -> argparse.ArgumentParser:
         default="reports/",
         help="Output directory for reports",
     )
+    intraday = parser.add_argument_group(
+        "intraday mode", "size an intraday-exit-planner plan into one whole-share bracket order"
+    )
+    intraday.add_argument(
+        "--intraday-plan",
+        metavar="PATH",
+        help="plan report from intraday-exit-planner (reports/intraday_exit_plan_<TICKER>_<date>.json)",
+    )
+    intraday.add_argument(
+        "--max-loss-usd",
+        type=float,
+        help="most one trade may lose at the stop, in dollars (or use --risk-pct)",
+    )
+    intraday.add_argument("--max-order-usd", type=float, help="largest single order in dollars")
+    intraday.add_argument(
+        "--cash-buffer-pct",
+        type=float,
+        default=0.0,
+        help="percent of the account always kept in cash (default 0)",
+    )
+    intraday.add_argument(
+        "--available-cash", type=float, help="cash available at the broker, caps the size"
+    )
+    intraday.add_argument(
+        "--min-order-usd", type=float, default=0.0, help="smallest order worth sending (default 0)"
+    )
+    intraday.add_argument(
+        "--min-reward-risk",
+        type=float,
+        default=1.0,
+        help="refuse a plan under this reward:risk at the sizing price (default 1.0)",
+    )
+    intraday.add_argument("--limit-price", type=float, help="size a limit order at this price")
+    intraday.add_argument(
+        "--current-price",
+        type=float,
+        help="a fresh latest price: a market order is sized at the higher of it and the plan's entry",
+    )
+    intraday.add_argument(
+        "--prices-file",
+        metavar="PATH",
+        help="intraday-alerts quotes (state/intraday/prices.json), used only when under 15 minutes old",
+    )
+    intraday.add_argument(
+        "--today", help="New York date YYYY-MM-DD the plan must be for (default: today)"
+    )
+    intraday.add_argument(
+        "--now", help="pin the clock, ISO time with Z or an offset (tests, replays)"
+    )
     return parser
+
+
+def run_intraday(args) -> int:
+    """--intraday-plan: size the plan, write the reports, return the exit code (0 order, 1 none)."""
+    now_utc = parse_utc(args.now) if args.now else None
+    if args.now and now_utc is None:
+        print(
+            f"Error: --now wants an ISO time like 2026-10-19T14:55:00Z, not {args.now!r}",
+            file=sys.stderr,
+        )
+        return 1
+    now_utc = now_utc or datetime.now(timezone.utc).replace(microsecond=0, tzinfo=None)
+    try:
+        plan = load_plan(args.intraday_plan)
+        current = args.current_price
+        stale_note = None
+        if current is None and args.prices_file:
+            symbol = str(plan.get("symbol") or "").upper()
+            price, fresh = fresh_price(load_prices(args.prices_file), symbol, now_utc)
+            if fresh:
+                current = price
+            elif price is not None:
+                stale_note = (
+                    f"the {symbol} price in {args.prices_file} is older than 15 minutes: not used"
+                )
+        limits = IntradayLimits(
+            account_size=args.account_size,
+            max_loss_usd=args.max_loss_usd,
+            risk_pct=args.risk_pct,
+            max_position_pct=args.max_position_pct,
+            max_order_usd=args.max_order_usd,
+            cash_buffer_pct=args.cash_buffer_pct,
+            available_cash=args.available_cash,
+            min_order_usd=args.min_order_usd,
+            min_reward_risk=args.min_reward_risk,
+        )
+        result = size_intraday(
+            plan,
+            limits,
+            limit_price=args.limit_price,
+            current_price=current,
+            today=args.today or new_york_date(now_utc),
+        )
+    except IntradaySizingError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    result["parameters"]["plan_file"] = args.intraday_plan
+    if stale_note:
+        result["notes"] = [stale_note]
+    json_path, md_path = write_reports(result, args.output_dir)
+    print(f"JSON report: {json_path}")
+    print(f"Markdown report: {md_path}")
+    p = result["parameters"]
+    if result["bracket_order"] is None:
+        print(f"\nNo order: {result['refusal']}")
+        return 1
+    print(
+        "\nFinal: {} shares of {} @ {:.2f} (bound by {})".format(
+            result["final_recommended_shares"],
+            p["symbol"],
+            p["sized_at"],
+            result["binding_constraint"],
+        )
+    )
+    print(
+        "Max loss at the stop {:.2f}: ${:,.2f} ({}% of the account)".format(
+            p["stop_price"], result["final_risk_dollars"], result["final_risk_pct"]
+        )
+    )
+    print(
+        "Proposed bracket order in the report. Nothing was placed: next is "
+        "pre-trade-discipline-gate, then your explicit yes, then portfolio-manager."
+    )
+    return 0
+
+
+def write_reports(result: dict, output_dir: str) -> tuple[str, str]:
+    """reports/position_sizer_<timestamp>.json and .md."""
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    json_path = os.path.join(output_dir, f"position_sizer_{timestamp}.json")
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(result, f, indent=2)
+    md_path = os.path.join(output_dir, f"position_sizer_{timestamp}.md")
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write(generate_markdown_report(result))
+    return json_path, md_path
 
 
 def main() -> None:
     """CLI entry point."""
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.intraday_plan:
+        clashes = [
+            flag
+            for flag, value in (
+                ("--entry", args.entry),
+                ("--stop", args.stop),
+                ("--atr", args.atr),
+                ("--win-rate", args.win_rate),
+                ("--fractional", args.fractional or None),
+                ("--max-sector-pct", args.max_sector_pct),
+            )
+            if value is not None
+        ]
+        if clashes:
+            parser.error(
+                "--intraday-plan takes entry, stop and target from the plan and sizes whole shares "
+                "for a bracket order: drop " + ", ".join(clashes)
+            )
+        sys.exit(run_intraday(args))
 
     # Validate mutual exclusivity
     if args.risk_pct is not None and args.win_rate is not None:

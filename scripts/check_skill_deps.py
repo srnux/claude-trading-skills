@@ -246,6 +246,41 @@ SMOKE_CONTRACTS: dict[str, list[SmokeContract]] = {
             expect_out=("usage:", "--lookback-days"),
         )
     ],
+    "intraday-alerts": [
+        SmokeContract(
+            "skills/intraday-alerts/scripts/intraday_alerts.py",
+            ("--help",),
+            expect_out=("usage:", "{clock,quote,check,add,list,reset}"),
+        )
+    ],
+    "intraday-entry-timer": [
+        SmokeContract(
+            "skills/intraday-entry-timer/scripts/intraday_entry.py",
+            ("--help",),
+            expect_out=("usage:", "{check,watch,watchlist}"),
+        )
+    ],
+    "intraday-exit-planner": [
+        SmokeContract(
+            "skills/intraday-exit-planner/scripts/intraday_exit.py",
+            ("--help",),
+            expect_out=("usage:", "{plan,show}"),
+        )
+    ],
+    "intraday-scanner": [
+        SmokeContract(
+            "skills/intraday-scanner/scripts/intraday_scanner.py",
+            ("--help",),
+            expect_out=("usage:", "{universe,daily,orb}"),
+        )
+    ],
+    "intraday-time-machine": [
+        SmokeContract(
+            "skills/intraday-time-machine/scripts/intraday_time_machine.py",
+            ("--help",),
+            expect_out=("usage:", "{run,chart}"),
+        )
+    ],
     "edge-strategy-reviewer": [
         SmokeContract(
             "skills/edge-strategy-reviewer/scripts/review_strategy_drafts.py",

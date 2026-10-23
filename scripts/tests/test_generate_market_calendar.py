@@ -34,6 +34,11 @@ def test_authority_has_exact_supported_consumer_set(generator):
         "breakout-trade-planner",
         "drawdown-circuit-breaker",
         "earnings-trade-analyzer",
+        "intraday-alerts",
+        "intraday-entry-timer",
+        "intraday-exit-planner",
+        "intraday-scanner",
+        "intraday-time-machine",
         "market-environment-analysis",
         "market-top-detector",
         "parabolic-short-trade-planner",
@@ -53,7 +58,9 @@ def test_authority_has_exact_supported_consumer_set(generator):
 def test_targets_cover_runtime_tests_requirements_and_examples(generator):
     rendered = generator.targets(generator.load_config())
     paths = {path.relative_to(REPO_ROOT).as_posix() for path, _ in rendered}
-    assert len(paths) == 28
+    assert (
+        len(paths) == 43
+    )  # 3 generated files per consumer (12) + consumers.txt + 6 example-mirror files
     assert "scripts/market_calendar/consumers.txt" in paths
     for skill in generator.load_config()["consumers"]:
         assert f"skills/{skill}/scripts/_market_calendar.py" in paths

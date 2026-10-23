@@ -19,7 +19,7 @@ generated: true
 
 | 合計 | 本番 | ベータ | 知識のみ | 実行可能 | テストあり | テストなし |
 |---:|---:|---:|---:|---:|---:|---:|
-| 74 | 62 | 12 | 3 | 71 | 71 | 0 |
+| 79 | 62 | 17 | 3 | 76 | 76 | 0 |
 
 ## テストカバレッジ
 
@@ -38,7 +38,7 @@ generated: true
 | FMP | 29 |
 | FINVIZ | 4 |
 | ALPACA | 2 |
-| その他の外部プロバイダ | 8 |
+| その他の外部プロバイダ | 13 |
 | オフライン（外部データなし） | 35 |
 
 ## ベータパイプライン
@@ -47,6 +47,11 @@ generated: true
 |---|---:|
 | `crypto-regime-analyzer` | not yet measured |
 | `fxmacrodata-calendar` | not yet measured |
+| `intraday-alerts` | not yet measured |
+| `intraday-entry-timer` | not yet measured |
+| `intraday-exit-planner` | not yet measured |
+| `intraday-scanner` | not yet measured |
+| `intraday-time-machine` | not yet measured |
 | `manifoldbt-backtester` | not yet measured |
 | `mt5-robot-tester` | not yet measured |
 | `residual-edge-analyzer` | not yet measured |
@@ -91,6 +96,11 @@ generated: true
 | **FXMacroData Calendar** (`fxmacrodata-calendar`) | ベータ | はい | はい | 96.0% |
 | **IBD Distribution Day Monitor** (`ibd-distribution-day-monitor`) | 本番 | はい | はい | 98.7% |
 | **Institutional Flow Tracker** (`institutional-flow-tracker`) | 本番 | はい | はい | 75.7% |
+| **Intraday Alerts** (`intraday-alerts`) | ベータ | はい | はい | not yet measured |
+| **Intraday Entry Timer** (`intraday-entry-timer`) | ベータ | はい | はい | not yet measured |
+| **Intraday Exit Planner** (`intraday-exit-planner`) | ベータ | はい | はい | not yet measured |
+| **Intraday Scanner** (`intraday-scanner`) | ベータ | はい | はい | not yet measured |
+| **Intraday Time Machine** (`intraday-time-machine`) | ベータ | はい | はい | not yet measured |
 | **Kanchi Dividend Review Monitor** (`kanchi-dividend-review-monitor`) | 本番 | はい | はい | 82.2% |
 | **Kanchi Dividend SOP** (`kanchi-dividend-sop`) | 本番 | はい | はい | 76.2% |
 | **Kanchi Dividend US Tax Accounting** (`kanchi-dividend-us-tax-accounting`) | 本番 | はい | はい | 70.5% |
