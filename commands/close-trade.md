@@ -3,6 +3,8 @@ description: Record a closed/trimmed trade and run the postmortem (trade-memory-
 argument-hint: "<ticker or thesis id> <shares> @ <price> [date] [reason]"
 ---
 
+# Close Trade
+
 Run the `trade-memory-loop` workflow. The canonical definition is `workflows/trade-memory-loop.yaml` — read it first and follow its steps and manual_review items.
 
 Trade details: $ARGUMENTS

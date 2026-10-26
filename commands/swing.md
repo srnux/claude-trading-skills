@@ -3,6 +3,8 @@ description: Swing Opportunity Daily — screen, validate, size, journal, discip
 argument-hint: "[EU/US tickers to evaluate instead of / in addition to screening]"
 ---
 
+# Swing Opportunity Daily
+
 Run the `swing-opportunity-daily` workflow. The canonical definition is `workflows/swing-opportunity-daily.yaml` — read it first and follow its steps, decision gates, and manual_review items exactly. Stop at any failed gate and say why.
 
 Prerequisite: check `reports/` for today's market-regime / exposure-coach output. If missing, run `/regime` first. If the decision is restrict or cash-priority, stop — no new swing risk today.

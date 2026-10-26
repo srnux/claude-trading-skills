@@ -3,6 +3,8 @@ description: Daily market regime check (breadth, uptrend, top risk → exposure 
 argument-hint: "[--full to include macro-regime-detector]"
 ---
 
+# Market Regime Daily
+
 Run the `market-regime-daily` workflow. The canonical definition is `workflows/market-regime-daily.yaml` — read it first and follow its steps, decision gates, and manual_review items exactly.
 
 Steps (in order, invoke each skill via the Skill tool):

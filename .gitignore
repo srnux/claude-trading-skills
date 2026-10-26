@@ -19,8 +19,7 @@ env/
 # Tool configurations
 .idea/
 .vscode/
-.claude/*
-!.claude/commands/
+.claude/
 .envrc
 .mcp.json
 
