@@ -1,0 +1,336 @@
+symbol,name,market,country
+ADS.DE,Adidas,DE,Germany
+ALV.DE,Allianz,DE,Germany
+BAS.DE,BASF,DE,Germany
+BAYN.DE,Bayer,DE,Germany
+BEI.DE,Beiersdorf,DE,Germany
+BMW.DE,BMW,DE,Germany
+BNR.DE,Brenntag,DE,Germany
+CBK.DE,Commerzbank,DE,Germany
+CON.DE,Continental,DE,Germany
+DTG.DE,Daimler Truck,DE,Germany
+DBK.DE,Deutsche Bank,DE,Germany
+DB1.DE,Deutsche Boerse,DE,Germany
+DHL.DE,DHL Group,DE,Germany
+DTE.DE,Deutsche Telekom,DE,Germany
+EOAN.DE,E.ON,DE,Germany
+EVK.DE,Evonik,DE,Germany
+FRA.DE,Fraport,DE,Germany
+FRE.DE,Fresenius,DE,Germany
+FME.DE,Fresenius Medical Care,DE,Germany
+G1A.DE,GEA Group,DE,Germany
+G24.DE,Scout24,DE,Germany
+HAG.DE,Hensoldt,DE,Germany
+HEI.DE,Heidelberg Materials,DE,Germany
+HEN3.DE,Henkel,DE,Germany
+HNR1.DE,Hannover Rueck,DE,Germany
+IFX.DE,Infineon,DE,Germany
+KGX.DE,Kion,DE,Germany
+LHA.DE,Lufthansa,DE,Germany
+MBG.DE,Mercedes-Benz Group,DE,Germany
+MRK.DE,Merck KGaA,DE,Germany
+MTX.DE,MTU Aero Engines,DE,Germany
+MUV2.DE,Munich Re,DE,Germany
+NEM.DE,Nemetschek,DE,Germany
+P911.DE,Porsche AG,DE,Germany
+PAH3.DE,Porsche SE,DE,Germany
+PUM.DE,Puma,DE,Germany
+QIA.DE,Qiagen,DE,Germany
+R3NK.DE,Renk,DE,Germany
+RHM.DE,Rheinmetall,DE,Germany
+RWE.DE,RWE,DE,Germany
+SAP.DE,SAP,DE,Germany
+SHL.DE,Siemens Healthineers,DE,Germany
+SIE.DE,Siemens,DE,Germany
+ENR.DE,Siemens Energy,DE,Germany
+SRT3.DE,Sartorius,DE,Germany
+SY1.DE,Symrise,DE,Germany
+TKA.DE,Thyssenkrupp,DE,Germany
+TLX.DE,Talanx,DE,Germany
+VNA.DE,Vonovia,DE,Germany
+VOW3.DE,Volkswagen,DE,Germany
+ZAL.DE,Zalando,DE,Germany
+AC.PA,Accor,FR,France
+ACA.PA,Credit Agricole,FR,France
+AI.PA,Air Liquide,FR,France
+AIR.PA,Airbus,FR,France
+ALO.PA,Alstom,FR,France
+BN.PA,Danone,FR,France
+BNP.PA,BNP Paribas,FR,France
+CA.PA,Carrefour,FR,France
+CAP.PA,Capgemini,FR,France
+CS.PA,AXA,FR,France
+DG.PA,Vinci,FR,France
+DSY.PA,Dassault Systemes,FR,France
+EDEN.PA,Edenred,FR,France
+EL.PA,EssilorLuxottica,FR,France
+EN.PA,Bouygues,FR,France
+ENGI.PA,Engie,FR,France
+ERF.PA,Eurofins Scientific,FR,France
+GLE.PA,Societe Generale,FR,France
+HO.PA,Thales,FR,France
+KER.PA,Kering,FR,France
+LR.PA,Legrand,FR,France
+MC.PA,LVMH,FR,France
+ML.PA,Michelin,FR,France
+OR.PA,L'Oreal,FR,France
+ORA.PA,Orange,FR,France
+PUB.PA,Publicis,FR,France
+RI.PA,Pernod Ricard,FR,France
+RMS.PA,Hermes,FR,France
+RNO.PA,Renault,FR,France
+SAF.PA,Safran,FR,France
+SAN.PA,Sanofi,FR,France
+SGO.PA,Saint-Gobain,FR,France
+STLAP.PA,Stellantis,FR,France
+STMPA.PA,STMicroelectronics,FR,France
+SU.PA,Schneider Electric,FR,France
+TEP.PA,Teleperformance,FR,France
+TTE.PA,TotalEnergies,FR,France
+URW.PA,Unibail-Rodamco-Westfield,FR,France
+VIE.PA,Veolia,FR,France
+ADYEN.AS,Adyen,NL,Netherlands
+AD.AS,Ahold Delhaize,NL,Netherlands
+AGN.AS,Aegon,NL,Netherlands
+AKZA.AS,Akzo Nobel,NL,Netherlands
+ASM.AS,ASM International,NL,Netherlands
+ASML.AS,ASML,NL,Netherlands
+ASRNL.AS,ASR Nederland,NL,Netherlands
+BESI.AS,BE Semiconductor,NL,Netherlands
+DSFIR.AS,DSM-Firmenich,NL,Netherlands
+EXO.AS,Exor,NL,Netherlands
+HEIA.AS,Heineken,NL,Netherlands
+IMCD.AS,IMCD,NL,Netherlands
+INGA.AS,ING Groep,NL,Netherlands
+KPN.AS,KPN,NL,Netherlands
+MT.AS,ArcelorMittal,NL,Netherlands
+NN.AS,NN Group,NL,Netherlands
+PHIA.AS,Philips,NL,Netherlands
+PRX.AS,Prosus,NL,Netherlands
+RAND.AS,Randstad,NL,Netherlands
+UMG.AS,Universal Music Group,NL,Netherlands
+WKL.AS,Wolters Kluwer,NL,Netherlands
+A2A.MI,A2A,IT,Italy
+AMP.MI,Amplifon,IT,Italy
+AZM.MI,Azimut,IT,Italy
+BAMI.MI,Banco BPM,IT,Italy
+BGN.MI,Banca Generali,IT,Italy
+BMPS.MI,Banca Monte dei Paschi,IT,Italy
+BPE.MI,BPER Banca,IT,Italy
+CPR.MI,Campari,IT,Italy
+DIA.MI,DiaSorin,IT,Italy
+ENEL.MI,Enel,IT,Italy
+ENI.MI,Eni,IT,Italy
+FBK.MI,FinecoBank,IT,Italy
+G.MI,Generali,IT,Italy
+HER.MI,Hera,IT,Italy
+INW.MI,Inwit,IT,Italy
+IP.MI,Interpump,IT,Italy
+ISP.MI,Intesa Sanpaolo,IT,Italy
+IVG.MI,Iveco,IT,Italy
+LDO.MI,Leonardo,IT,Italy
+MB.MI,Mediobanca,IT,Italy
+MONC.MI,Moncler,IT,Italy
+NEXI.MI,Nexi,IT,Italy
+PIRC.MI,Pirelli,IT,Italy
+PRY.MI,Prysmian,IT,Italy
+PST.MI,Poste Italiane,IT,Italy
+RACE.MI,Ferrari,IT,Italy
+REC.MI,Recordati,IT,Italy
+SPM.MI,Saipem,IT,Italy
+SRG.MI,Snam,IT,Italy
+TEN.MI,Tenaris,IT,Italy
+TIT.MI,Telecom Italia,IT,Italy
+TRN.MI,Terna,IT,Italy
+UCG.MI,UniCredit,IT,Italy
+UNI.MI,Unipol,IT,Italy
+ACS.MC,ACS,ES,Spain
+ACX.MC,Acerinox,ES,Spain
+AENA.MC,Aena,ES,Spain
+AMS.MC,Amadeus,ES,Spain
+ANA.MC,Acciona,ES,Spain
+ANE.MC,Acciona Energia,ES,Spain
+BBVA.MC,BBVA,ES,Spain
+BKT.MC,Bankinter,ES,Spain
+CABK.MC,CaixaBank,ES,Spain
+CLNX.MC,Cellnex,ES,Spain
+COL.MC,Inmobiliaria Colonial,ES,Spain
+ELE.MC,Endesa,ES,Spain
+ENG.MC,Enagas,ES,Spain
+FDR.MC,Fluidra,ES,Spain
+FER.MC,Ferrovial,ES,Spain
+GRF.MC,Grifols,ES,Spain
+IBE.MC,Iberdrola,ES,Spain
+IDR.MC,Indra,ES,Spain
+ITX.MC,Inditex,ES,Spain
+LOG.MC,Logista,ES,Spain
+MAP.MC,Mapfre,ES,Spain
+MEL.MC,Melia Hotels,ES,Spain
+MRL.MC,Merlin Properties,ES,Spain
+NTGY.MC,Naturgy,ES,Spain
+PUIG.MC,Puig,ES,Spain
+RED.MC,Redeia,ES,Spain
+REP.MC,Repsol,ES,Spain
+ROVI.MC,Laboratorios Rovi,ES,Spain
+SAB.MC,Banco Sabadell,ES,Spain
+SAN.MC,Banco Santander,ES,Spain
+SCYR.MC,Sacyr,ES,Spain
+SLR.MC,Solaria,ES,Spain
+TEF.MC,Telefonica,ES,Spain
+UNI.MC,Unicaja,ES,Spain
+AAF.L,Airtel Africa,UK,United Kingdom
+AAL.L,Anglo American,UK,United Kingdom
+ABF.L,Associated British Foods,UK,United Kingdom
+ADM.L,Admiral Group,UK,United Kingdom
+ANTO.L,Antofagasta,UK,United Kingdom
+AUTO.L,Auto Trader,UK,United Kingdom
+AV.L,Aviva,UK,United Kingdom
+AZN.L,AstraZeneca,UK,United Kingdom
+BA.L,BAE Systems,UK,United Kingdom
+BAB.L,Babcock International,UK,United Kingdom
+BARC.L,Barclays,UK,United Kingdom
+BATS.L,British American Tobacco,UK,United Kingdom
+BEZ.L,Beazley,UK,United Kingdom
+BKG.L,Berkeley Group,UK,United Kingdom
+BLND.L,British Land,UK,United Kingdom
+BME.L,B&M European Value Retail,UK,United Kingdom
+BNZL.L,Bunzl,UK,United Kingdom
+BP.L,BP,UK,United Kingdom
+BRBY.L,Burberry,UK,United Kingdom
+BT-A.L,BT Group,UK,United Kingdom
+CCH.L,Coca-Cola HBC,UK,United Kingdom
+CNA.L,Centrica,UK,United Kingdom
+CPG.L,Compass Group,UK,United Kingdom
+CRDA.L,Croda,UK,United Kingdom
+DCC.L,DCC,UK,United Kingdom
+DGE.L,Diageo,UK,United Kingdom
+DPLM.L,Diploma,UK,United Kingdom
+EDV.L,Endeavour Mining,UK,United Kingdom
+ENT.L,Entain,UK,United Kingdom
+EXPN.L,Experian,UK,United Kingdom
+EZJ.L,easyJet,UK,United Kingdom
+FRES.L,Fresnillo,UK,United Kingdom
+GAW.L,Games Workshop,UK,United Kingdom
+GLEN.L,Glencore,UK,United Kingdom
+GSK.L,GSK,UK,United Kingdom
+HIK.L,Hikma Pharmaceuticals,UK,United Kingdom
+HLMA.L,Halma,UK,United Kingdom
+HLN.L,Haleon,UK,United Kingdom
+HSBA.L,HSBC,UK,United Kingdom
+HSX.L,Hiscox,UK,United Kingdom
+HWDN.L,Howden Joinery,UK,United Kingdom
+IAG.L,International Airlines Group,UK,United Kingdom
+ICG.L,Intermediate Capital Group,UK,United Kingdom
+IHG.L,InterContinental Hotels,UK,United Kingdom
+III.L,3i Group,UK,United Kingdom
+IMB.L,Imperial Brands,UK,United Kingdom
+IMI.L,IMI,UK,United Kingdom
+INF.L,Informa,UK,United Kingdom
+ITRK.L,Intertek,UK,United Kingdom
+JD.L,JD Sports,UK,United Kingdom
+KGF.L,Kingfisher,UK,United Kingdom
+LAND.L,Land Securities,UK,United Kingdom
+LGEN.L,Legal & General,UK,United Kingdom
+LLOY.L,Lloyds Banking Group,UK,United Kingdom
+LMP.L,LondonMetric Property,UK,United Kingdom
+LSEG.L,London Stock Exchange Group,UK,United Kingdom
+MKS.L,Marks & Spencer,UK,United Kingdom
+MNDI.L,Mondi,UK,United Kingdom
+MNG.L,M&G,UK,United Kingdom
+MRO.L,Melrose Industries,UK,United Kingdom
+NG.L,National Grid,UK,United Kingdom
+NWG.L,NatWest Group,UK,United Kingdom
+NXT.L,Next,UK,United Kingdom
+PCT.L,Polar Capital Technology Trust,UK,United Kingdom
+SDLF.L,Standard Life (ex-Phoenix Group),UK,United Kingdom
+PRU.L,Prudential,UK,United Kingdom
+PSN.L,Persimmon,UK,United Kingdom
+PSON.L,Pearson,UK,United Kingdom
+REL.L,RELX,UK,United Kingdom
+RIO.L,Rio Tinto,UK,United Kingdom
+RKT.L,Reckitt Benckiser,UK,United Kingdom
+RMV.L,Rightmove,UK,United Kingdom
+RR.L,Rolls-Royce,UK,United Kingdom
+RS1.L,RS Group,UK,United Kingdom
+RTO.L,Rentokil Initial,UK,United Kingdom
+SBRY.L,Sainsbury's,UK,United Kingdom
+SDR.L,Schroders,UK,United Kingdom
+SGE.L,Sage Group,UK,United Kingdom
+SGRO.L,Segro,UK,United Kingdom
+SHEL.L,Shell,UK,United Kingdom
+SMIN.L,Smiths Group,UK,United Kingdom
+SMT.L,Scottish Mortgage Investment Trust,UK,United Kingdom
+SN.L,Smith & Nephew,UK,United Kingdom
+SPX.L,Spirax Group,UK,United Kingdom
+SSE.L,SSE,UK,United Kingdom
+STAN.L,Standard Chartered,UK,United Kingdom
+STJ.L,St. James's Place,UK,United Kingdom
+SVT.L,Severn Trent,UK,United Kingdom
+TSCO.L,Tesco,UK,United Kingdom
+TW.L,Taylor Wimpey,UK,United Kingdom
+ULVR.L,Unilever,UK,United Kingdom
+UTG.L,Unite Group,UK,United Kingdom
+UU.L,United Utilities,UK,United Kingdom
+VOD.L,Vodafone,UK,United Kingdom
+WEIR.L,Weir Group,UK,United Kingdom
+WPP.L,WPP,UK,United Kingdom
+WTB.L,Whitbread,UK,United Kingdom
+CARL-B.CO,Carlsberg,NORDIC,Denmark
+COLO-B.CO,Coloplast,NORDIC,Denmark
+DANSKE.CO,Danske Bank,NORDIC,Denmark
+DSV.CO,DSV,NORDIC,Denmark
+GMAB.CO,Genmab,NORDIC,Denmark
+MAERSK-B.CO,A.P. Moller-Maersk,NORDIC,Denmark
+NOVO-B.CO,Novo Nordisk,NORDIC,Denmark
+NSIS-B.CO,Novonesis,NORDIC,Denmark
+ORSTED.CO,Orsted,NORDIC,Denmark
+PNDORA.CO,Pandora,NORDIC,Denmark
+VWS.CO,Vestas Wind Systems,NORDIC,Denmark
+ALFA.ST,Alfa Laval,NORDIC,Sweden
+ASSA-B.ST,Assa Abloy,NORDIC,Sweden
+ATCO-A.ST,Atlas Copco,NORDIC,Sweden
+EPI-A.ST,Epiroc,NORDIC,Sweden
+EQT.ST,EQT,NORDIC,Sweden
+ERIC-B.ST,Ericsson,NORDIC,Sweden
+ESSITY-B.ST,Essity,NORDIC,Sweden
+EVO.ST,Evolution,NORDIC,Sweden
+HEXA-B.ST,Hexagon,NORDIC,Sweden
+HM-B.ST,H&M,NORDIC,Sweden
+INVE-B.ST,Investor AB,NORDIC,Sweden
+SAAB-B.ST,Saab,NORDIC,Sweden
+SAND.ST,Sandvik,NORDIC,Sweden
+SEB-A.ST,SEB,NORDIC,Sweden
+SHB-A.ST,Handelsbanken,NORDIC,Sweden
+SWED-A.ST,Swedbank,NORDIC,Sweden
+TELIA.ST,Telia,NORDIC,Sweden
+VOLV-B.ST,Volvo,NORDIC,Sweden
+FORTUM.HE,Fortum,NORDIC,Finland
+KNEBV.HE,Kone,NORDIC,Finland
+NDA-FI.HE,Nordea,NORDIC,Finland
+NESTE.HE,Neste,NORDIC,Finland
+NOKIA.HE,Nokia,NORDIC,Finland
+SAMPO.HE,Sampo,NORDIC,Finland
+STERV.HE,Stora Enso,NORDIC,Finland
+UPM.HE,UPM-Kymmene,NORDIC,Finland
+WRT1V.HE,Wartsila,NORDIC,Finland
+ABI.BR,Anheuser-Busch InBev,OTHER,Belgium
+ACKB.BR,Ackermans & van Haaren,OTHER,Belgium
+AGS.BR,Ageas,OTHER,Belgium
+ARGX.BR,argenx,OTHER,Belgium
+DIE.BR,D'Ieteren,OTHER,Belgium
+ELI.BR,Elia Group,OTHER,Belgium
+GBLB.BR,Groupe Bruxelles Lambert,OTHER,Belgium
+KBC.BR,KBC Group,OTHER,Belgium
+SOLB.BR,Solvay,OTHER,Belgium
+UCB.BR,UCB,OTHER,Belgium
+A5G.IR,AIB Group,OTHER,Ireland
+BIRG.IR,Bank of Ireland,OTHER,Ireland
+KRZ.IR,Kerry Group,OTHER,Ireland
+RYA.IR,Ryanair,OTHER,Ireland
+EBS.VI,Erste Group,OTHER,Austria
+OMV.VI,OMV,OTHER,Austria
+VER.VI,Verbund,OTHER,Austria
+EDP.LS,EDP,OTHER,Portugal
+EDPR.LS,EDP Renovaveis,OTHER,Portugal
+GALP.LS,Galp Energia,OTHER,Portugal
+JMT.LS,Jeronimo Martins,OTHER,Portugal

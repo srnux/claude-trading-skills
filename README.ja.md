@@ -279,7 +279,7 @@ FMP / FINVIZ / Alpaca の有料サブスクをまだ持っていない場合は�
 |---|---|---|---|---|
 | **Data Quality Checker** (`data-quality-checker`) | Validate data quality in market analysis documents and blog articles before publication. | `local_calculation` — | standalone | production |
 | **Dual Axis Skill Reviewer** (`dual-axis-skill-reviewer`) | Review skills in any project using a dual-axis method: (1) deterministic code-based checks (structure, scripts, tests, execution safety) and (2) LLM deep review findings. | `local_calculation` — | workflow_step | production |
-| **Earnings Calendar** (`earnings-calendar`) | This skill retrieves upcoming earnings announcements for US stocks using the Financial Modeling Prep (FMP) API. | `fmp` **required** | standalone | production |
+| **Earnings Calendar** (`earnings-calendar`) | This skill retrieves upcoming earnings announcements for US stocks using the Financial Modeling Prep (FMP) API, and for European (EU + UK) large caps using yfinance. | `fmp` **required**, `yfinance` optional | standalone | production |
 | **Economic Calendar Fetcher** (`economic-calendar-fetcher`) | Fetch upcoming economic events and data releases using FMP API. | `fmp` **required** | standalone | production |
 | **FXMacroData Calendar** (`fxmacrodata-calendar`) | Fetch official-source macro release-calendar events using FXMacroData for trade planning and event-risk filters. | `fxmacrodata` optional | standalone | beta |
 | **Skill Designer** (`skill-designer`) | Design new Claude skills from structured idea specifications. | `local_calculation` — | internal_component | production |

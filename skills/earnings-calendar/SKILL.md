@@ -1,6 +1,6 @@
 ---
 name: earnings-calendar
-description: This skill retrieves upcoming earnings announcements for US stocks using the Financial Modeling Prep (FMP) API. Use this when the user requests earnings calendar data, wants to know which companies are reporting earnings in the upcoming week, or needs a weekly earnings review. The skill focuses on mid-cap and above companies (over $2B market cap) that have significant market impact, organizing the data by date and timing in a clean markdown table format. Supports multiple environments (CLI, Desktop, Web) with flexible API key management.
+description: This skill retrieves upcoming earnings announcements for US stocks using the Financial Modeling Prep (FMP) API, and for European (EU + UK) large caps using yfinance (no API key). Use this when the user requests earnings calendar data, wants to know which companies are reporting earnings in the upcoming week, or needs a weekly earnings review. The skill focuses on mid-cap and above companies (over $2B market cap) that have significant market impact, organizing the data by date and timing in a clean markdown table format. Supports multiple environments (CLI, Desktop, Web) with flexible API key management.
 ---
 
 # Earnings Calendar
@@ -16,6 +16,7 @@ This skill retrieves upcoming earnings announcements for US stocks using the Fin
 - Multi-environment support (CLI, Desktop, Web)
 - Flexible API key management
 - Organized by date, timing, and market cap
+- **EU/UK region** (DE, FR, NL, IT, ES, UK, Nordics, BE/IE/AT/PT) via yfinance, no API key; see [Region: EU/UK Mode](#region-euuk-mode-yfinance)
 
 ## Prerequisites
 
@@ -507,6 +508,42 @@ Top 5 by market cap:
 5. Tesla - $800B (Wed AMC)
 ```
 
+## Region: EU/UK Mode (yfinance)
+
+Use this mode when the user asks for European, German, French, UK, Nordic, or other EU earnings dates, or for earnings dates of European holdings. FMP's calendar on standard plans returns US names only, so do not use the FMP script for these requests.
+
+**Requirements**: `yfinance` (declared optional in `requirements.txt`). No API key. The script exits with code 2 and an install hint when yfinance is missing.
+
+**How it works**: Yahoo's market-wide calendar lists European companies under US OTC symbols, so the script walks a curated large-cap universe of local listings (`assets/eu_earnings_universe.csv`, about 335 tickers) and requests each ticker's calendar. A full run takes about 1-2 minutes.
+
+**Step 1: Fetch data** (JSON to stdout, progress to stderr):
+
+```bash
+# Next 7 days, all markets
+python3 scripts/fetch_earnings_eu.py > earnings_eu.json
+
+# Date range and selected markets (DE, FR, NL, IT, ES, UK, NORDIC, OTHER)
+python3 scripts/fetch_earnings_eu.py --from 2026-10-27 --to 2026-11-13 --markets DE,UK > earnings_eu.json
+
+# Specific Yahoo symbols (e.g. the user's holdings); replaces the universe
+python3 scripts/fetch_earnings_eu.py --tickers SIE.DE,ALV.DE,AZN.L,NOVO-B.CO > earnings_eu.json
+```
+
+**Step 2: Generate the report** with the same generator; it detects `region: "eu"` records and switches labels, currencies, and timing notes automatically:
+
+```bash
+python3 scripts/generate_report.py earnings_eu.json reports/earnings_calendar_eu_<YYYY-MM-DD>.md
+```
+
+**Interpret the output**:
+- `marketCap` / `marketCapFormatted` are in EUR (converted at the current FX rate) so companies sort comparably; `marketCapLocal` + `currency` hold the local value.
+- EPS and revenue estimates are in the company's reporting currency (`estimateCurrency`), e.g. USD for AstraZeneca, Shell, and HSBC.
+- Timing is always `TAS` because Yahoo gives dates only; most European companies report around 07:00 CET, pre-market.
+- `dateEstimated: true` (shown as `TICKER*` in the report) means Yahoo has a projected window, not a confirmed date.
+- Verify dates for positions the user holds against company investor relations calendars before acting.
+
+**Maintain the universe**: Index membership changes. Edit `assets/eu_earnings_universe.csv` (columns `symbol,name,market,country`, Yahoo symbols with exchange suffix). Invalid symbols show as yfinance `HTTP Error 404 ... Quote not found` lines on stderr; fix or remove them.
+
 ## Fallback Mode (Step 8 Alternative): Manual Data Entry
 
 If API access is unavailable or user chooses to skip API:
@@ -708,6 +745,7 @@ For Claude Web, understand that:
 **Skill Resources**:
 - FMP API Guide: `references/fmp_api_guide.md`
 - Python Script: `scripts/fetch_earnings_fmp.py`
+- EU/UK Script: `scripts/fetch_earnings_eu.py` (yfinance; universe in `assets/eu_earnings_universe.csv`)
 - Vendored FMP Compat: `scripts/_fmp_compat.py` (v3→stable rewrite shim)
 - Vendored FMP Client: `scripts/fmp_client.py` (generated; handles rate limiting, single 429 retry, and header auth) — note: HTTP failures print one generic `ERROR: API request failed: …` client line plus the script's mapped `❌ ERROR:` message
 - Report Template: `assets/earnings_report_template.md`
