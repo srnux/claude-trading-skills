@@ -1,3 +1,4 @@
 # Runtime dependencies for standalone .skill installs (issue #330).
 # Verified by scripts/check_skill_deps.py.
 requests>=2.31.0
+yfinance>=0.2.40  # optional: only the EU/UK mode (fetch_earnings_eu.py) needs it; exits 2 with install hint when absent

@@ -151,24 +151,92 @@ def get_day_name(date_str: str) -> str:
     return date_obj.strftime("%A, %B %d, %Y")
 
 
-def format_revenue(revenue: float) -> str:
+def format_revenue(revenue: float, prefix: str = "$") -> str:
     """
     Format revenue in human-readable format
 
     Args:
-        revenue: Revenue in dollars
+        revenue: Revenue in major currency units
+        prefix: Currency prefix (e.g., "$", "€", "DKK ")
 
     Returns:
         Formatted string (e.g., "$3.5B", "$150M")
     """
     if revenue >= 1e12:
-        return f"${revenue / 1e12:.1f}T"
+        return f"{prefix}{revenue / 1e12:.1f}T"
     elif revenue >= 1e9:
-        return f"${revenue / 1e9:.1f}B"
+        return f"{prefix}{revenue / 1e9:.1f}B"
     elif revenue >= 1e6:
-        return f"${revenue / 1e6:.0f}M"
+        return f"{prefix}{revenue / 1e6:.0f}M"
     else:
-        return f"${revenue:,.0f}"
+        return f"{prefix}{revenue:,.0f}"
+
+
+EU_CURRENCY_PREFIX = {"EUR": "€", "GBP": "£"}
+
+
+def detect_region(earnings: list[dict]) -> str:
+    """Return "eu" for fetch_earnings_eu.py output, else "us"."""
+    return "eu" if any(s.get("region") == "eu" for s in earnings) else "us"
+
+
+def estimate_prefix(stock: dict, region: str) -> str:
+    """Currency prefix for EPS/revenue estimates (reporting currency in EU mode)."""
+    if region != "eu":
+        return "$"
+    currency = stock.get("estimateCurrency") or "EUR"
+    return EU_CURRENCY_PREFIX.get(currency, f"{currency} ")
+
+
+REGION_TEXT = {
+    "us": {
+        "source": "FMP API (US stocks, Mid-cap and above, >$2B market cap)",
+        "large_label": "Mega/Large Cap (>$10B)",
+        "mid_label": "Mid Cap ($2B-$10B)",
+        "trading": """- **Pre-Market Focus**: BMO announcements before 9:30 AM ET
+- **After-Hours Focus**: AMC announcements after 4:00 PM ET""",
+        "timing_ref": """- **BMO (Before Market Open)**: Announcements typically around 6:00-8:00 AM ET before market opens at 9:30 AM ET
+- **AMC (After Market Close)**: Announcements typically around 4:00-5:00 PM ET after market closes at 4:00 PM ET
+- **TAS (Time Not Announced)**: Specific time not yet disclosed - monitor company investor relations""",
+        "notes": """- **Market Cap Categories**:
+  - Mega Cap: >$200B
+  - Large Cap: $10B-$200B
+  - Mid Cap: $2B-$10B
+
+- **Filter Criteria**: This report includes US companies with market cap $2B and above (mid-cap+) with earnings scheduled for the next week.
+
+- **Data Source**: Financial Modeling Prep (FMP) API
+
+- **Data Freshness**: Earnings dates and times can change. Verify critical dates through company investor relations websites for the most current information.
+
+- **EPS and Revenue Estimates**: Analyst consensus estimates from FMP API. Actual results will be reported on earnings date.""",
+        "resources": """- **FMP API Documentation**: https://site.financialmodelingprep.com/developer/docs
+- **Seeking Alpha Calendar**: https://seekingalpha.com/earnings/earnings-calendar
+- **Yahoo Finance Calendar**: https://finance.yahoo.com/calendar/earnings""",
+        "footer": "*Report generated using FMP Earnings Calendar API with US stocks mid-cap+ filter (>$2B market cap). Data current as of report generation time. Always verify earnings dates through official company sources.*",
+    },
+    "eu": {
+        "source": "Yahoo Finance via yfinance (Europe: EU + UK large caps, local listings)",
+        "large_label": "Large Cap (>€10B)",
+        "mid_label": "Below €10B / unknown",
+        "trading": """- **Morning Releases**: Most European companies report around 07:00 CET, before the Xetra/Euronext open at 09:00 CET (08:00 London)
+- **Estimated Dates**: Tickers marked * have a projected date window, not a confirmed date""",
+        "timing_ref": """- **TAS (Time Not Announced)**: yfinance provides dates only, not release times. Most European reports come out pre-market (around 07:00 CET); check company investor relations for exact times
+- **\\* (Estimated)**: Yahoo shows a date window instead of a confirmed date""",
+        "notes": """- **Universe**: Curated large-cap list (DE, FR, NL, IT, ES, UK, Nordics, BE/IE/AT/PT) in `assets/eu_earnings_universe.csv`, one local listing per company
+
+- **Market Cap**: Converted to EUR at the current FX rate for comparability
+
+- **EPS and Revenue Estimates**: Analyst consensus in each company's reporting currency (e.g., AstraZeneca and Shell report in USD)
+
+- **Data Source**: Yahoo Finance via yfinance (unofficial; no API key)
+
+- **Data Freshness**: Earnings dates can change. Verify critical dates through company investor relations websites.""",
+        "resources": """- **Yahoo Finance**: https://finance.yahoo.com
+- **MarketScreener Europe Calendar**: https://www.marketscreener.com/stock-exchange/calendar/finance/europe/""",
+        "footer": "*Report generated from Yahoo Finance data via yfinance for European (EU + UK) large caps. Data current as of report generation time. Always verify earnings dates through official company sources.*",
+    },
+}
 
 
 def generate_report(earnings: list[dict]) -> str:
@@ -183,6 +251,9 @@ def generate_report(earnings: list[dict]) -> str:
     """
     if not earnings:
         return "# Earnings Calendar\n\nNo earnings data available.\n"
+
+    region = detect_region(earnings)
+    text = REGION_TEXT[region]
 
     # Calculate statistics
     stats = calculate_summary_stats(earnings)
@@ -207,7 +278,7 @@ def generate_report(earnings: list[dict]) -> str:
     report = f"""# Upcoming Earnings Calendar - Week of {date_range}
 
 **Report Generated**: {datetime.now().strftime("%B %d, %Y")}
-**Data Source**: FMP API (US stocks, Mid-cap and above, >$2B market cap)
+**Data Source**: {text["source"]}
 **Coverage Period**: Next 7 days
 **Total Companies**: {stats["total"]}
 
@@ -216,8 +287,8 @@ def generate_report(earnings: list[dict]) -> str:
 ## Executive Summary
 
 - **Total Companies Reporting**: {stats["total"]}
-- **Mega/Large Cap (>$10B)**: {stats["large_cap"]}
-- **Mid Cap ($2B-$10B)**: {stats["mid_cap"]}
+- **{text["large_label"]}**: {stats["large_cap"]}
+- **{text["mid_label"]}**: {stats["mid_cap"]}
 - **Peak Day**: {peak_day} ({stats["peak_count"]} companies)
 
 ---
@@ -254,15 +325,18 @@ def generate_report(earnings: list[dict]) -> str:
 
                 for stock in display_stocks:
                     ticker = stock.get("symbol", "N/A")
+                    if stock.get("dateEstimated"):
+                        ticker += "*"
                     company = (stock.get("companyName") or "N/A")[:35]
                     mcap = stock.get("marketCapFormatted", "N/A")
                     sector = (stock.get("sector") or "N/A")[:18]
+                    prefix = estimate_prefix(stock, region)
 
                     eps = stock.get("epsEstimated")
-                    eps_str = f"${eps:.2f}" if eps is not None else "N/A"
+                    eps_str = f"{prefix}{eps:.2f}" if eps is not None else "N/A"
 
                     rev = stock.get("revenueEstimated")
-                    rev_str = format_revenue(rev) if rev else "N/A"
+                    rev_str = format_revenue(rev, prefix) if rev else "N/A"
 
                     report += (
                         f"| {ticker} | {company} | {mcap} | {sector} | {eps_str} | {rev_str} |\n"
@@ -293,45 +367,29 @@ def generate_report(earnings: list[dict]) -> str:
     report += f"""
 ### Trading Considerations
 - **Peak Day**: {peak_day} with {stats["peak_count"]} earnings announcements
-- **Pre-Market Focus**: BMO announcements before 9:30 AM ET
-- **After-Hours Focus**: AMC announcements after 4:00 PM ET
+{text["trading"]}
 
 ---
 
 ## Timing Reference
 
-- **BMO (Before Market Open)**: Announcements typically around 6:00-8:00 AM ET before market opens at 9:30 AM ET
-- **AMC (After Market Close)**: Announcements typically around 4:00-5:00 PM ET after market closes at 4:00 PM ET
-- **TAS (Time Not Announced)**: Specific time not yet disclosed - monitor company investor relations
+{text["timing_ref"]}
 
 ---
 
 ## Data Notes
 
-- **Market Cap Categories**:
-  - Mega Cap: >$200B
-  - Large Cap: $10B-$200B
-  - Mid Cap: $2B-$10B
-
-- **Filter Criteria**: This report includes US companies with market cap $2B and above (mid-cap+) with earnings scheduled for the next week.
-
-- **Data Source**: Financial Modeling Prep (FMP) API
-
-- **Data Freshness**: Earnings dates and times can change. Verify critical dates through company investor relations websites for the most current information.
-
-- **EPS and Revenue Estimates**: Analyst consensus estimates from FMP API. Actual results will be reported on earnings date.
+{text["notes"]}
 
 ---
 
 ## Additional Resources
 
-- **FMP API Documentation**: https://site.financialmodelingprep.com/developer/docs
-- **Seeking Alpha Calendar**: https://seekingalpha.com/earnings/earnings-calendar
-- **Yahoo Finance Calendar**: https://finance.yahoo.com/calendar/earnings
+{text["resources"]}
 
 ---
 
-*Report generated using FMP Earnings Calendar API with US stocks mid-cap+ filter (>$2B market cap). Data current as of report generation time. Always verify earnings dates through official company sources.*
+{text["footer"]}
 """
 
     return report
