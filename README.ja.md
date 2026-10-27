@@ -1,5 +1,7 @@
 # Claude Trading Skills
 
+> **このリポジトリは [tradermonty/claude-trading-skills](https://github.com/tradermonty/claude-trading-skills) のフォークです**（upstream と同期）。デイトレード用の intraday スキル、欧州（EU + 英国）決算カレンダー、ワークフロー用スラッシュコマンド（`/regime`、`/swing`、`/close-trade`）、解説付き HTML の uptrend レポートを追加しています。詳細は英語版 README の [What this fork adds](README.md#what-this-fork-adds) をご覧ください。
+
 Claude Trading Skills は、作者自身が AI を使って自分のトレードプロセスを改善したいと考えたことから始まりました。
 
 Claude Trading Skills は、時間制約のある個人投資家が、Claude を使って投資・トレード判断を仕組み化するための Claude Skills 集です。
