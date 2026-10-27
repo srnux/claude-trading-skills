@@ -19,6 +19,7 @@ Usage:
 Output:
     - JSON: uptrend_analysis_YYYY-MM-DD_HHMMSS.json
     - Markdown: uptrend_analysis_YYYY-MM-DD_HHMMSS.md
+    - HTML: uptrend_analysis_YYYY-MM-DD_HHMMSS.html
 """
 
 import argparse
@@ -41,6 +42,7 @@ from data_fetcher import (
     WORKSHEET_TO_DISPLAY,
     UptrendDataFetcher,
 )
+from html_report import generate_html_report
 from provenance_contract import build_provenance
 from report_generator import generate_json_report, generate_markdown_report
 from scorer import calculate_composite_score
@@ -245,9 +247,11 @@ def main():
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     json_file = os.path.join(args.output_dir, f"uptrend_analysis_{timestamp}.json")
     md_file = os.path.join(args.output_dir, f"uptrend_analysis_{timestamp}.md")
+    html_file = os.path.join(args.output_dir, f"uptrend_analysis_{timestamp}.html")
 
     generate_json_report(analysis, json_file)
     generate_markdown_report(analysis, md_file)
+    generate_html_report(analysis, html_file)
 
     print()
     print("=" * 70)
@@ -258,6 +262,7 @@ def main():
     print(f"  Exposure Guidance: {composite['exposure_guidance']}")
     print(f"  JSON Report: {json_file}")
     print(f"  Markdown Report: {md_file}")
+    print(f"  HTML Report: {html_file}")
     print()
 
 

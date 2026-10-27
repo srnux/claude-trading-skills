@@ -139,6 +139,7 @@ Confidence levels: High, Medium, Low.
 
 - JSON: `uptrend_analysis_YYYY-MM-DD_HHMMSS.json`
 - Markdown: `uptrend_analysis_YYYY-MM-DD_HHMMSS.md`
+- HTML: `uptrend_analysis_YYYY-MM-DD_HHMMSS.html` (same data, with "what it measures" and a reading of today's value next to every number)
 
 ## Reference Documents
 
