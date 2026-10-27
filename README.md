@@ -1,5 +1,7 @@
 # Claude Trading Skills
 
+> **This is a fork** of [tradermonty/claude-trading-skills](https://github.com/tradermonty/claude-trading-skills), kept in sync with upstream. It adds intraday day-trading skills, European earnings coverage, workflow slash commands and an explained HTML uptrend report — see [What this fork adds](#what-this-fork-adds).
+
 Claude Trading Skills started as a personal project to use AI to improve my own trading process.
 
 Claude Trading Skills is a Claude Skills-based trading workflow toolkit for time-constrained individual investors.
@@ -17,6 +19,17 @@ The project follows a **first for self, open for others** stance: it is built fi
 **Project vision:** [`PROJECT_VISION.md`](PROJECT_VISION.md)
 
 日本語版READMEは[`README.ja.md`](README.ja.md)をご覧ください。
+
+## What this fork adds
+
+Everything from upstream works as before. On top of it:
+
+| Addition | What you get | API |
+| --- | --- | --- |
+| **Intraday day-trading skills** — [`intraday-scanner`](docs/en/skills/intraday-scanner.md), [`intraday-entry-timer`](docs/en/skills/intraday-entry-timer.md), [`intraday-exit-planner`](docs/en/skills/intraday-exit-planner.md), [`intraday-time-machine`](docs/en/skills/intraday-time-machine.md), [`intraday-alerts`](docs/en/skills/intraday-alerts.md) | An opening-range-breakout pipeline: scan US stocks, time the entry bar by bar, set stop/target/flat-by time before buying, replay the plan 10,000 times on the stock's last 60 days, then alert on stop, target and close. Position Sizer gains an `--intraday-plan` mode for one whole-share bracket order. See [the workflow](#intraday-opening-range-breakout-advanced-satellite). | None (free Yahoo data) |
+| **EU + UK earnings calendar** — [`earnings-calendar`](skills/earnings-calendar/SKILL.md) | A European region covering ~335 EU and UK large caps on their local listings (DE, FR, NL, IT, ES, UK, Nordics, BE/IE/AT/PT). Market cap in EUR for sorting, estimates in the reporting currency, projected dates flagged. FMP's calendar on standard plans is US-only. | None (`yfinance`) |
+| **Workflow slash commands** — [`commands/`](commands/) | `/regime` runs the daily market-regime check, `/swing` the swing-opportunity workflow (accepts EU/US tickers), `/close-trade` records a closed or trimmed trade and runs the postmortem. Each follows its manifest in [`workflows/`](workflows/). | Per workflow |
+| **Explained uptrend report** — [`uptrend-analyzer`](skills/uptrend-analyzer/SKILL.md) | Each run also writes `uptrend_analysis_<ts>.html`: the same data as the Markdown report, with a "how to read" intro, a ratio scale, and for each value what it measures and what today's reading means. Readable without the methodology reference. | None |
 
 ## Disclaimer
 
