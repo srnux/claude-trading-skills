@@ -790,7 +790,7 @@ Operational workflow manifests for the solo-trader OS. Each workflow names the e
 
 - consumes: `vcp_candidates`, `momentum_burst_candidates`, `exhaustion_hammer_candidates`, `canslim_candidates`, `theme_candidates`
 - produces: `validated_setups`
-- **Decision:** Which candidates have a clean weekly setup (Stage 2 uptrend, tight base, or Stockbee-style range expansion from a controlled base) and pass the manual chart review? For exhaustion hammers, confirm the pullback is not thesis-breaking and risk to the day low is acceptable. Reject candidates that don't pass.
+- **Decision:** Which candidates have a clean weekly setup (Stage 2 uptrend, tight base, or Stockbee-style range expansion from a controlled base) and pass the manual chart review? For exhaustion hammers, confirm the pullback is not thesis-breaking and risk to the day low is acceptable. Run the technical-analyst Catalyst & Event Check (news search for any gap or 2%+ candle, next earnings date versus the holding period). Reject candidates that don't pass.
 
 **Step 8: Calculate position size** → `position-sizer`
 
@@ -821,6 +821,7 @@ Operational workflow manifests for the solo-trader OS. Each workflow names the e
 - Reject any candidate where weekly setup is unclear, even if screener passed.
 - Treat Stockbee momentum burst output as candidate generation only; require chart validation and risk-distance review.
 - Treat Stockbee exhaustion hammer output as candidate generation only; confirm the pullback is not caused by a thesis-breaking news event and verify risk to the day low.
+- Run a news search for every candidate with a gap or 2%+ candle, check the article's publication date against the move, and flag earnings inside the holding period.
 - Verify total portfolio heat is within budget before placing any order.
 - Confirm pre_trade_discipline_decision is GO before placing any manual broker order.
 - All orders are placed manually at the broker; no auto-execution.

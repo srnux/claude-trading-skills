@@ -114,3 +114,47 @@ def test_existing_workflow_identity_phrases_untouched() -> None:
     assert "Chart Images" in text
     assert "Pure Chart Analysis" in text
     assert "Probabilistic Scenarios" in text
+
+
+# --- Catalyst & Event Check (trade-plan reviews) -- additive section --------
+# A chart-only read missed that a +3% candle needed a news check and that
+# earnings fell inside the holding period. The check runs alongside the chart
+# read, never inside it, so the chart-only identity phrases above still hold.
+
+CATALYST_HEADING = "## Catalyst & Event Check (Trade-Plan Reviews)"
+
+
+def test_catalyst_check_section_present_and_positioned() -> None:
+    text = _skill_text()
+
+    assert CATALYST_HEADING in text
+    contrarian_idx = text.index("## Contrarian Confirmation Mode (Shapiro Step 3)")
+    catalyst_idx = text.index(CATALYST_HEADING)
+    resources_idx = text.index("## Resources")
+    assert contrarian_idx < catalyst_idx < resources_idx
+
+
+def test_catalyst_check_names_triggers_and_required_checks() -> None:
+    section = _skill_text().split(CATALYST_HEADING, 1)[1].split("\n## ", 1)[0]
+
+    for token in (
+        "WebSearch",
+        "publication date",
+        "earnings date",
+        "holding period",
+        "2%",
+        "No catalyst found",
+    ):
+        assert token in section, f"expected {token!r} in the catalyst check section"
+
+
+def test_catalyst_check_keeps_chart_read_separate() -> None:
+    section = _skill_text().split(CATALYST_HEADING, 1)[1].split("\n## ", 1)[0]
+
+    assert "does not change the chart-based probabilities" in section
+
+
+def test_template_has_catalyst_section() -> None:
+    template = (SKILL_DIR / "assets" / "analysis_template.md").read_text(encoding="utf-8")
+
+    assert "Catalyst & Event Check" in template

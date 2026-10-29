@@ -14,7 +14,7 @@ Steps (invoke each skill via the Skill tool):
 2. `vcp-screener` (US only — FMP plan is US-only)
 3. Optional: `stockbee-momentum-burst-screener`, `stockbee-exhaustion-hammer-screener`, `canslim-screener`, `theme-detector` — run only if the VCP list is thin
 4. Tickers in `$ARGUMENTS` (e.g. EU names like RHM.DE) skip screening and go straight to step 5; fetch their data and earnings dates via yfinance
-5. `technical-analyst` — weekly-chart validation; reject unclear setups. Flag any candidate with earnings inside the planned holding period
+5. `technical-analyst` — weekly-chart validation; reject unclear setups. Also run its Catalyst & Event Check: search news for any gap or 2%+ candle (check publication dates against the move) and flag any candidate with earnings inside the planned holding period
 6. `position-sizer` — account size from `state/portfolio.md`, 1% risk default
 7. `breakout-trade-planner` for entry/stop/target and portfolio heat
 8. `trader-memory-core` — register each surviving thesis in `state/theses/`
