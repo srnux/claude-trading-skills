@@ -390,6 +390,51 @@ verdict stands.
 - **A single-signal MEDIUM verdict is deliberately weak evidence** — see
   the Confidence section of `references/contrarian-confirmation-checklist.md`.
 
+## Catalyst & Event Check (Trade-Plan Reviews)
+
+This is an ADDITIVE step that runs next to the chart read, never inside it.
+The chart analysis above stays pure; this step adds the non-chart facts a
+trade plan needs before money is at risk.
+
+### When to Run
+
+Run it without asking whenever any of these apply:
+
+- The user is reviewing, planning, or adjusting a real trade (entry, stop,
+  target, position size, or an open order), not only asking for a chart read.
+- The chart shows a sharp move: a gap, or a single candle of 2% or more of
+  price, on any timeframe.
+- Scenarios are being built for a holding period of days to weeks.
+
+Skip it only for a pure chart-reading request with no trade attached.
+
+### Required Checks
+
+1. **News behind sharp moves**: Use WebSearch for the company name or ticker
+   plus the date of the move. For non-US stocks, also search local-language
+   sources (e.g. German for XETRA names). Before naming an article as the
+   cause, compare its publication date with the date of the move. An older
+   article does not explain a new move.
+2. **Earnings and scheduled events**: Find the next earnings date (yfinance
+   per ticker works for EU/UK names; `earnings-calendar` covers US names)
+   and any other scheduled event for the company. Flag it when it falls
+   inside the planned holding period, and state the size of past results-day
+   moves when available.
+3. **Result line**: State one of the following for each sharp move:
+   - `Catalyst found: <headline> (<source>, <publication date>)`
+   - `No catalyst found` (list the searches run)
+
+### Effect on the Analysis
+
+- The catalyst check does not change the chart-based probabilities. Report
+  it in its own section ("Catalyst & Event Check" in the template), and say
+  in plain words how it affects the trade plan, e.g. "earnings in 5 trading
+  days: close before the release or accept gap risk past the stop".
+- An earnings date inside the holding period must appear in the Summary's
+  Risk Considerations.
+- When no search tool is available, say so explicitly; never imply that a
+  move has no catalyst without searching.
+
 ## Resources
 
 This skill includes the following bundled resources:

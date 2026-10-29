@@ -174,6 +174,17 @@
 
 ---
 
+## Catalyst & Event Check (trade-plan reviews only)
+
+[Include only when the Catalyst & Event Check in SKILL.md applies. This section never changes the chart-based probabilities above.]
+
+- **Sharp moves checked**: [Date and size of each gap or 2%+ candle]
+- **Result**: [Catalyst found: headline (source, publication date) / No catalyst found (searches run)]
+- **Next earnings / scheduled events**: [Date, and whether it falls inside the holding period]
+- **Effect on the trade plan**: [e.g. close before the release, or accept gap risk past the stop]
+
+---
+
 ## 10. Disclaimer
 
 This analysis is based purely on technical chart data and does not consider fundamental factors, news, or market sentiment. It represents a probabilistic assessment of potential scenarios, not a prediction or investment recommendation. All probabilities are estimates based on technical factors and subject to change as new data emerges.

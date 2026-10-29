@@ -164,13 +164,17 @@ steps:
       Which candidates have a clean weekly setup (Stage 2 uptrend, tight base,
       or Stockbee-style range expansion from a controlled base) and pass the
       manual chart review? For exhaustion hammers, confirm the pullback is not
-      thesis-breaking and risk to the day low is acceptable. Reject candidates
+      thesis-breaking and risk to the day low is acceptable. Run the
+      technical-analyst Catalyst & Event Check (news search for any gap or 2%+
+      candle, next earnings date versus the holding period). Reject candidates
       that don't pass.
     decision_question_ja: >-
       明確な週足セットアップ（Stage 2の上昇トレンド、引き締まったベース、または
       制御されたベースからのStockbee式レンジ拡大）があり、チャートの手動レビューを
       通過する候補はどれか。エグゾースションハンマーでは、押しが投資仮説を崩すものではなく、
-      当日安値までのリスクが許容範囲かを確認する。通過しない候補は却下する。
+      当日安値までのリスクが許容範囲かを確認する。technical-analyst の Catalyst & Event Check
+      （ギャップまたは2%以上の足のニュース検索、次回決算日と保有期間の照合）を実行する。
+      通過しない候補は却下する。
 
   - step: 8
     name: Calculate position size
@@ -240,6 +244,7 @@ manual_review:
   - Reject any candidate where weekly setup is unclear, even if screener passed.
   - Treat Stockbee momentum burst output as candidate generation only; require chart validation and risk-distance review.
   - Treat Stockbee exhaustion hammer output as candidate generation only; confirm the pullback is not caused by a thesis-breaking news event and verify risk to the day low.
+  - Run a news search for every candidate with a gap or 2%+ candle, check the article's publication date against the move, and flag earnings inside the holding period.
   - Verify total portfolio heat is within budget before placing any order.
   - Confirm pre_trade_discipline_decision is GO before placing any manual broker order.
   - All orders are placed manually at the broker; no auto-execution.
@@ -249,6 +254,7 @@ manual_review_ja:
   - スクリーナーを通過していても、週足セットアップが不明確な候補は却下する。
   - Stockbeeモメンタムバーストの出力は候補生成だけに使い、チャート検証とリスク距離の確認を必須とする。
   - Stockbeeエグゾースションハンマーの出力は候補生成だけに使い、押しが投資仮説を崩すニュースによるものではないことと、当日安値までのリスクを確認する。
+  - ギャップまたは2%以上の足がある候補はすべてニュースを検索し、記事の公開日を値動きの日付と照合し、保有期間内の決算を明示する。
   - 注文前にポートフォリオ全体のリスク量が上限内であることを確認する。
   - ブローカーへ手動注文を出す前に pre_trade_discipline_decision が GO であることを確認する。
   - すべての注文はブローカーで手動入力し、自動執行しない。
