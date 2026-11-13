@@ -235,7 +235,7 @@ The 2026-08-11 local planning snapshot measured 27 waived skills and estimated
 2,709 additional covered executable lines to reach every tier target. That
 estimate is for workload planning only: Ubuntu/Python 3.10 CI at each pull
 request head is authoritative because platform-specific imports and branches
-can change both the numerator and denominator. Root CI now runs Python 3.10;
+can change both the numerator and denominator. Root CI now runs Python 3.11;
 the dated Python 3.9 measurements above remain historical evidence.
 
 | Week ending | Skills | Planning lift (covered lines) |
