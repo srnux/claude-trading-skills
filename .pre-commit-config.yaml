@@ -202,7 +202,7 @@ repos:
         language: system
         # Fire on the canonical source, the generator, and every vendored copy
         # (catches a manual edit to a generated fmp_client.py / _fmp_compat.py).
-        files: '^(scripts/fmp_client/.*|scripts/generate_fmp_client\.py|skills/(pead-screener|earnings-trade-analyzer|ibd-distribution-day-monitor|vcp-screener|parabolic-short-trade-planner|ftd-detector|canslim-screener|macro-regime-detector|market-top-detector|us-undervalued-growth-screener|earnings-calendar|economic-calendar-fetcher|institutional-flow-tracker|cot-contrarian-detector|value-dividend-screener|dividend-growth-pullback-screener|kanchi-dividend-sop)/scripts/(fmp_client|_fmp_compat)\.py)$'
+        files: '^(scripts/fmp_client/.*|scripts/generate_fmp_client\.py|skills/(pead-screener|earnings-trade-analyzer|ibd-distribution-day-monitor|vcp-screener|parabolic-short-trade-planner|ftd-detector|canslim-screener|macro-regime-detector|market-top-detector|us-undervalued-growth-screener|earnings-calendar|economic-calendar-fetcher|institutional-flow-tracker|cot-contrarian-detector|value-dividend-screener|dividend-growth-pullback-screener|kanchi-dividend-sop)/scripts/(fmp_client|_fmp_compat|_alpaca_data|tests/test_alpaca_data_contract)\.py)$'
         pass_filenames: false
 
       - id: market-calendar-drift
