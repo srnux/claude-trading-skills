@@ -89,7 +89,11 @@ If the verdict is a coin flip or close to break-even, say so plainly. If the his
 
 If the user still wants the trade, size it with `position-sizer --intraday-plan`.
 
-Flags: `--replays` (10,000), `--seed` (19), `--window` (2 bars), `--until HH:MM`, `--offline FILE`, `--now`, `--output-dir` (reports/), `--no-write`, `--json`. `chart --from` draws an ASCII fan chart of the newest saved result. Read `references/replay_method.md` for the pool, the replay, the history and the verdict thresholds.
+Flags: `--replays` (10,000), `--seed` (19), `--window` (2 bars), `--until HH:MM`, `--offline FILE`, `--now`, `--output-dir` (reports/), `--no-write`, `--json`, `--eurusd RATE`, `--no-eur`. `chart --from` draws an ASCII fan chart of the newest saved result. Read `references/replay_method.md` for the pool, the replay, the history and the verdict thresholds.
+
+### Euro display
+
+The plan levels (entry, stop, target, risk a share) and the prices at `--until` print with their euro value, `$364.18 (€329.40)`. The EUR/USD rate is fetched once per run from Yahoo (`EURUSD=X`, free, can lag) and named in the last line. `--eurusd 1.1056` pins it, `--no-eur` shows dollars only, and `INTRADAY_EURUSD` (`off` or a rate) does the same from the environment. An `--offline` replay never fetches a rate. Odds, R and percentages do not change. The chart's price axis stays in dollars; its entry, stop and target labels add the euro value. `chart --from` reuses the saved rate.
 
 ---
 
@@ -101,5 +105,6 @@ Flags: `--replays` (10,000), `--seed` (19), `--window` (2 bars), `--until HH:MM`
 
 **Scripts:**
 
+- `skills/intraday-time-machine/scripts/_fx.py`
 - `skills/intraday-time-machine/scripts/_market_calendar.py`
 - `skills/intraday-time-machine/scripts/intraday_time_machine.py`

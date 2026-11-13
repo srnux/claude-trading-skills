@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import unittest.mock
 import urllib.error
 from contextlib import redirect_stderr, redirect_stdout
 
@@ -733,6 +734,7 @@ class Cli(unittest.TestCase):
                     "symbol": "KO",
                     "setups": ["breakout_20d"],
                     "price": 93.9,
+                    "price_eur": None,  # no EUR/USD rate in tests by default
                     "close_date": "2026-10-16",
                     "rsi": 75.3,
                     "volume": 3680307,
@@ -799,6 +801,9 @@ class Cli(unittest.TestCase):
                 "or_high": 362.18,
                 "or_low": 354.47,
                 "pct_over": 0.55,
+                "price_eur": None,  # no EUR/USD rate in tests by default
+                "or_high_eur": None,
+                "or_low_eur": None,
             },
             doc["hits"],
         )
@@ -1055,6 +1060,83 @@ class CalendarUnavailable(unittest.TestCase):
             err.getvalue(),
         )
         self.assertIn("requirements.txt", err.getvalue())
+
+
+class Euro(unittest.TestCase):
+    """USD prices also shown in euros at a pinned EUR/USD rate (1 € = $1.10)."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.t = os.path.join(self.d, "reports")
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def orb(self, *extra):
+        return run(
+            ["orb", "--offline", WALL, "--now", "2026-10-19 10:15", "--min-price", "0"]
+            + ["--output-dir", self.t]
+            + list(extra)
+        )
+
+    def test_orb_shows_euros_and_writes_eur_fields(self):
+        code, text, _ = self.orb("--eurusd", "1.1")
+        self.assertEqual(code, 0)
+        self.assertIn(
+            "10:15 AM  TSLA      $364.18 (€331.07)  range 354.47 to 362.18 (€322.25 to €329.25)"
+            "  +0.55% over",
+            text,
+        )
+        self.assertEqual(text.count("Euro prices at 1 € = $1.1000 (pinned"), 1)
+        path = os.path.join(self.t, "intraday_scanner_orb_2026-10-19_1015.json")
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+        self.assertEqual(doc["fx"]["eurusd"], 1.1)
+        self.assertEqual(doc["fx"]["source"], "pinned")
+        tsla = next(h for h in doc["hits"] if h["symbol"] == "TSLA")
+        self.assertEqual(
+            {k: tsla[k] for k in ("price", "price_eur", "or_high", "or_high_eur")},
+            {"price": 364.18, "price_eur": 331.07, "or_high": 362.18, "or_high_eur": 329.25},
+        )
+        self.assertEqual((tsla["or_low"], tsla["or_low_eur"]), (354.47, 322.25))
+        with open(path[:-5] + ".md", encoding="utf-8") as fh:
+            md = fh.read()
+        self.assertIn(
+            "| 10:15 AM | TSLA | $364.18 (€331.07) | 354.47 (€322.25) | 362.18 (€329.25) | +0.55% |",
+            md,
+        )
+        self.assertEqual(md.count("Euro prices at 1 € = $1.1000"), 1)
+
+    def test_daily_shows_euros_from_the_env_var(self):
+        argv = ["daily", "--offline", DAILY, "--now", "2026-10-19 09:00", "--min-volume", "0"]
+        with unittest.mock.patch.dict(os.environ, {"INTRADAY_EURUSD": "1.1"}):
+            code, text, _ = run(argv + ["--output-dir", self.t])
+            self.assertEqual(code, 0)
+            self.assertIn("Euro prices at 1 € = $1.1000 (env", text)
+            with open(
+                os.path.join(self.t, "intraday_scanner_daily_2026-10-19.md"), encoding="utf-8"
+            ) as fh:
+                md = fh.read()
+            self.assertIn("| KO | $93.90 (€85.36) |", md)
+            code, text, _ = run(argv + ["--json", "--no-write"])
+        out = json.loads(text)
+        self.assertEqual(out["fx"]["source"], "env")
+        ko = next(h for h in out["hits"] if h["symbol"] == "KO")
+        self.assertEqual((ko["price"], ko["price_eur"]), (93.9, 85.36))
+
+    def test_no_eur_and_usd_only(self):
+        code, text, _ = self.orb("--eurusd", "1.1", "--no-eur", "--no-write", "--json")
+        out = json.loads(text)
+        self.assertIsNone(out["fx"])
+        self.assertTrue(all(h["price_eur"] is None for h in out["hits"]))
+        code, text, _ = self.orb("--no-write")
+        self.assertNotIn("€", text)
+
+    def test_skill_md_documents_euros(self):
+        with open(os.path.join(ROOT, "SKILL.md"), encoding="utf-8") as fh:
+            low = " ".join(fh.read().lower().split())
+        for must in ("--eurusd", "--no-eur", "intraday_eurusd", "price_eur", "or_high_eur", '"fx"'):
+            self.assertIn(must, low)
 
 
 if __name__ == "__main__":

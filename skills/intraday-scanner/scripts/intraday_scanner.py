@@ -64,6 +64,12 @@ with nasdaqlisted.txt and otherlisted.txt; daily and orb take a folder of
 <T>.json v8 chart files or spark responses, or one file that is a spark
 response, a v8 chart, or a bundle {"TSLA": <v8 json>, ...}. .json.gz is fine.
 
+Euros: every dollar price is also shown in euros, e.g. $364.18 (€331.07), at
+the live EUR/USD rate (Yahoo EURUSD=X, fetched once per run). --eurusd RATE
+pins it, --no-eur shows dollars only, env INTRADAY_EURUSD=off|RATE overrides;
+--offline never fetches it. JSON reports carry "fx" and price_eur (orb also
+or_high_eur, or_low_eur), null without a rate; the dollar fields never change.
+
 A scan is a list of charts that match a rule, not a list of stocks to buy.
 Exit code 0 when the scan found something, 1 when it did not or could not run.
 """
@@ -80,6 +86,7 @@ import time
 import urllib.error
 import urllib.request
 
+import _fx
 import _market_calendar
 
 UA = "Mozilla/5.0 (compatible; claude-trading-skills intraday-scanner)"
@@ -917,15 +924,21 @@ def write_report(output_dir, stem, doc, md_lines):
     """reports/<stem>.json and reports/<stem>.md. Returns (json_path, md_path)."""
     json_path = os.path.join(output_dir, stem + ".json")
     md_path = os.path.join(output_dir, stem + ".md")
-    write_json(json_path, doc)
+    write_json(json_path, public(doc))
     with open(md_path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(md_lines) + "\n")
     return json_path, md_path
 
 
+def public(doc):
+    """The report without private keys (the FxRate object behind "fx")."""
+    return {k: v for k, v in doc.items() if not k.startswith("_")}
+
+
 def markdown_report(doc):
     """The scan as a Markdown report for reports/."""
     mode = doc["mode"]
+    rate = doc.get("_rate")
     title = "Opening-Range Breakout Scan" if mode == "orb" else "Daily Setup Scan"
     out = [
         f"# Intraday Scanner: {title}",
@@ -942,6 +955,8 @@ def markdown_report(doc):
         ),
         "- **Data:** Yahoo Finance chart endpoint (free, unofficial, can lag)",
     ]
+    if rate:
+        out.append("- **Euros:** " + _fx.note(rate))
     if mode == "orb":
         out.append(
             "- **Opening range:** first {:d} minutes, {} bars".format(
@@ -967,9 +982,9 @@ def markdown_report(doc):
                 "| {} | {} | {} | {} | {} | {:+.2f}% |".format(
                     h["at"],
                     h["symbol"],
-                    money(h["price"]),
-                    _p(h["or_low"]),
-                    _p(h["or_high"]),
+                    _fx.usd_eur(h["price"], rate),
+                    _p(h["or_low"]) + _eur_tail(rate, h["or_low"]),
+                    _p(h["or_high"]) + _eur_tail(rate, h["or_high"]),
                     h["pct_over"],
                 )
             )
@@ -979,7 +994,7 @@ def markdown_report(doc):
             out.append(
                 "| {} | {} | {:.1f} | {} |".format(
                     h["symbol"],
-                    money(h["price"]),
+                    _fx.usd_eur(h["price"], rate),
                     h["rsi"],
                     ", ".join(LABEL[t] for t in h["setups"]),
                 )
@@ -996,6 +1011,30 @@ def markdown_report(doc):
 
 def money(x):
     return f"${x:,.2f}"
+
+
+EUR_FIELDS = ("price", "or_high", "or_low")  # each gets a <field>_eur sibling
+
+
+def add_eur(hits, rate):
+    """Each hit with <field>_eur right after each USD price field (None without a rate).
+    The USD fields are never renamed or changed: other skills read them."""
+    out = []
+    for h in hits:
+        row = {}
+        for k, v in h.items():
+            row[k] = v
+            if k in EUR_FIELDS:
+                row[k + "_eur"] = _fx.eur(v, rate)
+        out.append(row)
+    return out
+
+
+def _eur_tail(rate, *prices):
+    """' (€1.00)' or ' (€1.00 to €2.00)', or '' without a rate."""
+    if not rate:
+        return ""
+    return " ({})".format(" to ".join(_fx.eur_only(x, rate) for x in prices))
 
 
 # ---------------------------------------------------------------- commands
@@ -1085,6 +1124,8 @@ def cmd_daily(a):
         )
         data, failed = fetch_spark(symbols, "3mo", "1d", a.pause, a)
     hits, counts, last_date = scan_daily(data, symbols, now, a.min_price, a.min_volume)
+    rate = _fx.from_args(a, offline=bool(a.offline))  # once per run
+    hits = add_eur(hits, rate)
     nfailed = len(symbols) - counts["fetched"]
     as_of = (f"{last_date.isoformat()} close") if last_date else None
     doc = {
@@ -1098,7 +1139,9 @@ def cmd_daily(a):
         "source": "yahoo",
         "filters": {"min_price": a.min_price, "min_volume": a.min_volume},
         "note": NOTE,
+        "fx": _fx.to_json(rate),
         "hits": hits,
+        "_rate": rate,
     }
     if a.offline:
         doc["offline"] = os.path.basename(a.offline.rstrip("/"))
@@ -1107,7 +1150,11 @@ def cmd_daily(a):
         stem = f"intraday_scanner_daily_{to_eastern(now).date().isoformat()}"
         written = write_report(a.output_dir, stem, doc, markdown_report(doc))
     if a.json:
-        print(json.dumps(dict(doc, counts=counts, seconds=round(time.time() - t0, 1)), indent=2))
+        print(
+            json.dumps(
+                dict(public(doc), counts=counts, seconds=round(time.time() - t0, 1)), indent=2
+            )
+        )
         return 0 if hits else 1
     local = to_eastern(now)
     print(
@@ -1142,10 +1189,16 @@ def cmd_daily(a):
         print("Most traded first (price x volume):")
     else:
         print("No setups.")
+    if rate:
+        print(_fx.note(rate))
     for h in hits[: a.show]:
         print(
-            "  {:<6} {:>10}  RSI {:5.1f}  {}".format(
-                h["symbol"], money(h["price"]), h["rsi"], ", ".join(LABEL[t] for t in h["setups"])
+            "  {:<6} {:>10}{}  RSI {:5.1f}  {}".format(
+                h["symbol"],
+                money(h["price"]),
+                "{:<12}".format(_eur_tail(rate, h["price"])) if rate else "",
+                h["rsi"],
+                ", ".join(LABEL[t] for t in h["setups"]),
             )
         )
     if len(hits) > a.show:
@@ -1217,6 +1270,8 @@ def cmd_orb(a):
     hits, counts, failed2 = scan_orb(
         data, symbols, day, cutoff, a.or_minutes, a.min_price, a.min_volume, confirm, a.max_confirm
     )
+    rate = _fx.from_args(a, offline=bool(a.offline))  # once per run
+    hits = add_eur(hits, rate)
     failed = dict(failed or {})
     failed.update(failed2)
     nfailed = len([s for s in symbols if s in failed])
@@ -1235,7 +1290,9 @@ def cmd_orb(a):
         "interval": (f"{BAR_MIN:d}m"),
         "filters": {"min_price": a.min_price, "min_volume": a.min_volume},
         "note": NOTE,
+        "fx": _fx.to_json(rate),
         "hits": hits,
+        "_rate": rate,
     }
     if a.offline:
         doc["offline"] = os.path.basename(a.offline.rstrip("/"))
@@ -1244,7 +1301,11 @@ def cmd_orb(a):
         stem = "intraday_scanner_orb_{}_{}".format(day.isoformat(), cutoff.strftime("%H%M"))
         written = write_report(a.output_dir, stem, doc, markdown_report(doc))
     if a.json:
-        print(json.dumps(dict(doc, counts=counts, seconds=round(time.time() - t0, 1)), indent=2))
+        print(
+            json.dumps(
+                dict(public(doc), counts=counts, seconds=round(time.time() - t0, 1)), indent=2
+            )
+        )
         return 0 if hits else 1
     print(
         f"Opening-range breakout scan, {day_label(day)} {clock_label(cutoff)} ET: {a.or_minutes:d}-minute range (9:30 to {clock_label(slot(day, a.or_minutes // BAR_MIN))}), 5-minute bars, Yahoo."
@@ -1267,6 +1328,8 @@ def cmd_orb(a):
             "PARTIAL: {} more candidates were not checked (only the {} most traded are; --max-confirm 0 "
             "checks all).".format("{:,}".format(counts["unconfirmed"]), f"{a.max_confirm:,}")
         )
+    if rate:
+        print(_fx.note(rate))
     if hits:
         print(
             "{:d} of {} charts closed above their opening-range high by {}:".format(
@@ -1279,12 +1342,14 @@ def cmd_orb(a):
         )
         for h in hits[: a.show]:
             print(
-                "  {:>8}  {:<6} {:>10}  range {} to {}  {:+.2f}% over".format(
+                "  {:>8}  {:<6} {:>10}{}  range {} to {}{}  {:+.2f}% over".format(
                     h["at"],
                     h["symbol"],
                     money(h["price"]),
+                    _eur_tail(rate, h["price"]),
                     _p(h["or_low"]),
                     _p(h["or_high"]),
+                    _eur_tail(rate, h["or_low"], h["or_high"]),
                     h["pct_over"],
                 )
             )
@@ -1354,6 +1419,7 @@ def main(argv=None):
         p.add_argument("--show", type=int, default=50, help="hits to print (all are written)")
         p.add_argument("--quiet", action="store_true")
         p.add_argument("--json", action="store_true")
+        _fx.add_cli_flags(p)
 
     p = sub.add_parser("daily", help="pre-market setups from daily closes")
     common(p, 5.0, 1000000)

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import ROUND_FLOOR, Decimal, localcontext
 
+import _fx
 from intraday_mode import (
     IntradayLimits,
     IntradaySizingError,
@@ -27,6 +28,7 @@ from intraday_mode import (
     load_prices,
     new_york_date,
     parse_utc,
+    price_eur,
     size_intraday,
 )
 from intraday_mode import markdown_lines as intraday_markdown_lines
@@ -514,6 +516,7 @@ def build_parser() -> argparse.ArgumentParser:
     intraday.add_argument(
         "--now", help="pin the clock, ISO time with Z or an offset (tests, replays)"
     )
+    _fx.add_cli_flags(intraday)  # euros next to the dollars, intraday mode only
     return parser
 
 
@@ -527,6 +530,11 @@ def run_intraday(args) -> int:
         )
         return 1
     now_utc = now_utc or datetime.now(timezone.utc).replace(microsecond=0, tzinfo=None)
+    try:
+        rate = _fx.from_args(args)  # once per run; None = dollars only
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
     try:
         plan = load_plan(args.intraday_plan)
         current = args.current_price
@@ -557,6 +565,7 @@ def run_intraday(args) -> int:
             limit_price=args.limit_price,
             current_price=current,
             today=args.today or new_york_date(now_utc),
+            fx_rate=rate,
         )
     except IntradaySizingError as e:
         print(f"Error: {e}", file=sys.stderr)
@@ -568,22 +577,35 @@ def run_intraday(args) -> int:
     print(f"JSON report: {json_path}")
     print(f"Markdown report: {md_path}")
     p = result["parameters"]
+    limits_line = "Account {}, max loss {}".format(
+        _fx.usd_eur(p["account_size"], rate), _fx.usd_eur(p["max_loss_usd"], rate)
+    )
+    if args.max_order_usd:
+        limits_line += f", max order {_fx.usd_eur(args.max_order_usd, rate)}"
+    print(f"\n{limits_line} (limits in dollars)")
     if result["bracket_order"] is None:
         print(f"\nNo order: {result['refusal']}")
+        if rate is not None:
+            print(_fx.note(rate))
         return 1
     print(
-        "\nFinal: {} shares of {} @ {:.2f} (bound by {})".format(
+        "\nFinal: {} shares of {} @ {} (bound by {})".format(
             result["final_recommended_shares"],
             p["symbol"],
-            p["sized_at"],
+            price_eur(p["sized_at"], rate),
             result["binding_constraint"],
         )
     )
+    print(f"Order value {_fx.usd_eur(result['final_position_value'], rate)}")
     print(
-        "Max loss at the stop {:.2f}: ${:,.2f} ({}% of the account)".format(
-            p["stop_price"], result["final_risk_dollars"], result["final_risk_pct"]
+        "Max loss at the stop {}: {} ({}% of the account)".format(
+            price_eur(p["stop_price"], rate),
+            _fx.usd_eur(result["final_risk_dollars"], rate),
+            result["final_risk_pct"],
         )
     )
+    if rate is not None:
+        print(_fx.note(rate))
     print(
         "Proposed bracket order in the report. Nothing was placed: next is "
         "pre-trade-discipline-gate, then your explicit yes, then portfolio-manager."

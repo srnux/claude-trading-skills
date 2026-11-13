@@ -17,6 +17,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import unittest.mock
 import urllib.error
 from contextlib import redirect_stderr, redirect_stdout
 
@@ -239,7 +240,9 @@ class OneMinute(unittest.TestCase):
             r["opening_range"],
             {
                 "high": 100.5,
+                "high_eur": None,  # no EUR/USD rate in tests by default
                 "low": 99.0,
+                "low_eur": None,
                 "minutes": 15,
                 "bars": 15,
                 "of": 15,
@@ -625,9 +628,18 @@ class Cli(unittest.TestCase):
             "price": 364.18,
             "level": 362.18,
             "interval": "5m",
-            "opening_range": {"high": 362.18, "low": 354.47, "minutes": 15},
+            "opening_range": {
+                "high": 362.18,
+                "low": 354.47,
+                "minutes": 15,
+                "high_eur": None,
+                "low_eur": None,
+            },
             "source": "yahoo",
             "checked_at": "2026-10-19T14:15:00Z",
+            "price_eur": None,
+            "level_eur": None,
+            "fx": None,
         }
         for k, v in want.items():
             self.assertEqual(e[k], v, k)
@@ -788,6 +800,11 @@ class SkillDoc(unittest.TestCase):
             "$364.18",
             "bar 8",
             "## safety",
+            "--eurusd",
+            "--no-eur",
+            "intraday_eurusd",
+            "price_eur",
+            "€331.07",
         ):
             self.assertIn(must, low)
         for never in ("tick " + "by tick", "real " + "time", "pro" + "fit"):
@@ -824,6 +841,99 @@ class CalendarUnavailable(unittest.TestCase):
             err.getvalue(),
         )
         self.assertIn("requirements.txt", err.getvalue())
+
+
+class Euro(unittest.TestCase):
+    """USD prices also shown in euros at a pinned EUR/USD rate (1 € = $1.10)."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.cwd = os.getcwd()
+        os.chdir(self.d)
+
+    def tearDown(self):
+        os.chdir(self.cwd)
+        shutil.rmtree(self.d)
+
+    def test_check_shows_euros_and_writes_eur_fields(self):
+        argv = ["check", "TSLA", "--offline", TSLA, "--now", "2026-10-19 10:15", "--eurusd", "1.1"]
+        code, text, _ = run(argv)
+        self.assertEqual(code, 0)
+        self.assertIn("TRIGGERED 10:15 AM at $364.18 (€331.07)", text)
+        self.assertIn("the range high $362.18 (€329.25)", text)
+        self.assertIn("high $362.18 (€329.25), low $354.47 (€322.25)", text)
+        self.assertEqual(text.count("Euro prices at 1 € = $1.1000 (pinned"), 1)
+        with open(os.path.join("reports", "intraday_entry_TSLA_2026-10-19.json")) as fh:
+            e = json.load(fh)
+        self.assertEqual(e["price"], 364.18)  # USD fields unchanged
+        self.assertEqual(e["level"], 362.18)
+        self.assertEqual(e["price_eur"], 331.07)
+        self.assertEqual(e["level_eur"], 329.25)
+        self.assertEqual(e["opening_range"]["high"], 362.18)
+        self.assertEqual(e["opening_range"]["high_eur"], 329.25)
+        self.assertEqual(e["opening_range"]["low_eur"], 322.25)
+        self.assertEqual(e["fx"]["eurusd"], 1.1)
+        self.assertEqual(e["fx"]["source"], "pinned")
+        with open(
+            os.path.join("reports", "intraday_entry_TSLA_2026-10-19.md"), encoding="utf-8"
+        ) as fh:
+            md = fh.read()
+        self.assertIn("- **Trigger:** 10:15 AM at $364.18 (€331.07) (bar 8", md)
+        self.assertIn("Euro prices at 1 € = $1.1000", md)
+
+    def test_waiting_reason_and_json_from_the_env_var(self):
+        with unittest.mock.patch.dict(os.environ, {"INTRADAY_EURUSD": "1.1"}):
+            code, text, _ = run(
+                ["check", "TSLA", "--offline", TSLA, "--now", "2026-10-19 10:12", "--no-write"]
+            )
+            self.assertIn("last close $361.68 (€328.80)", text)
+            self.assertIn("($364.18 (€331.07) so far", text)
+            code, text, _ = run(
+                ["check", "TSLA", "--offline", TSLA, "--now", "2026-10-19 10:12", "--json"]
+            )
+        r = json.loads(text)
+        self.assertEqual(r["fx"]["source"], "env")
+        self.assertEqual(r["last"]["close"], 361.68)
+        self.assertEqual(r["last"]["close_eur"], 328.8)
+        self.assertEqual(r["level_eur"], 329.25)
+
+    def test_usd_only_keeps_null_eur_fields(self):
+        code, text, _ = run(["check", "TSLA", "--offline", TSLA, "--now", "2026-10-19 10:15"])
+        self.assertNotIn("€", text)
+        with open(os.path.join("reports", "intraday_entry_TSLA_2026-10-19.json")) as fh:
+            e = json.load(fh)
+        self.assertIsNone(e["fx"])
+        self.assertIsNone(e["price_eur"])
+        self.assertIsNone(e["level_eur"])
+        code, text, _ = run(
+            ["check", "TSLA", "--offline", TSLA, "--now", "2026-10-19 10:15", "--eurusd", "1.1"]
+            + ["--no-eur", "--no-write"]
+        )
+        self.assertNotIn("€", text)
+
+    def test_watch_and_watchlist_show_euros(self):
+        code, text, _ = run(
+            ["watch", "TSLA", "--offline", TSLA, "--now", "2026-10-19 09:50", "--eurusd", "1.1"]
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("10:10 bar  closed $364.18 (€331.07)  TRIGGERED", text)
+        self.assertEqual(text.count("Euro prices at 1 €"), 1)
+        os.mkdir("charts")
+        shutil.copy(TSLA, os.path.join("charts", "TSLA.json"))
+        with open(os.path.join("reports", "intraday_scanner_orb_2026-10-19_1015.json"), "w") as fh:
+            json.dump({"hits": [{"symbol": "TSLA", "setups": ["orb"]}]}, fh)
+        code, text, _ = run(
+            ["watchlist", "--offline", "charts", "--now", "2026-10-19 10:15", "--eurusd", "1.1"]
+        )
+        self.assertEqual(code, 0)
+        rows = text.splitlines()
+        head = next(r for r in rows if r.startswith("SYMBOL"))
+        row = next(r for r in rows if r.startswith("TSLA"))
+        self.assertIn("PRICE €", head)
+        self.assertTrue(row.startswith("TSLA    triggered  10:15 AM  $364.18   $362.18"), row)
+        self.assertIn("€331.07", row)
+        self.assertIn("€329.25", row)
+        self.assertEqual(text.count("Euro prices at 1 €"), 1)
 
 
 if __name__ == "__main__":

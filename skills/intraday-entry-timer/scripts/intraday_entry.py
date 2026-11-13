@@ -48,6 +48,12 @@ Data: Yahoo's free chart JSON (unofficial, can lag, bars not single trades)
   PATH/<TICKER>.json when PATH is a folder. Without --now, an offline file is
   read as of its own time (meta.regularMarketTime).
 
+Euros: every dollar price is also shown in euros, e.g. $364.18 (€331.07), at
+the live EUR/USD rate (Yahoo EURUSD=X, fetched once per run). --eurusd RATE
+pins it, --no-eur shows dollars only, env INTRADAY_EURUSD=off|RATE overrides;
+--offline never fetches it. JSON reports carry "fx" and *_eur fields (null
+without a rate); the dollar fields never change.
+
 Exit codes: check 0 = triggered, 1 = anything else or an error. watch 0 on a
 trigger, 1 otherwise. watchlist 0 when at least one symbol triggered.
 """
@@ -65,6 +71,7 @@ import time
 import urllib.error
 import urllib.request
 
+import _fx
 import _market_calendar
 
 UA = "Mozilla/5.0 (compatible; claude-trading-skills intraday-entry-timer)"
@@ -443,9 +450,15 @@ def evaluate(
     level=None,
     min_volume_x=None,
     cfg=None,
+    rate=None,
 ):
-    """Pure function: the setup's status at now_utc from one session's bars."""
+    """Pure function: the setup's status at now_utc from one session's bars.
+    rate (an _fx.FxRate or None) adds euro amounts to the words and *_eur fields."""
     cfg = cfg or dict(DEFAULTS)
+
+    def m(x):
+        return _fx.usd_eur(x, rate)
+
     if interval not in INTERVALS:
         raise EntryError("--interval is 5m or 1m")
     step = INTERVALS[interval]
@@ -471,6 +484,7 @@ def evaluate(
         "reason": "",
         "opening_range": None,
         "level": None,
+        "level_eur": None,
         "trigger": None,
         "last": None,
         "forming": None,
@@ -478,6 +492,7 @@ def evaluate(
         "prev_close": chart.get("prev_close"),
         "calendar_known": True,
         "_bars": [],
+        "_fx": rate,
     }
     dt = chart.get("data_time")
     res["data_time"] = to_eastern(utc_of(dt)).strftime("%Y-%m-%d %H:%M:%S") if dt else None
@@ -533,6 +548,7 @@ def evaluate(
                     "bar_start": hm(b["et"]),
                     "closes": ampm(b["end"]),
                     "price": r2(b["c"]),
+                    "price_eur": _fx.eur(r2(b["c"]), rate),
                 }
                 res["lag_note"] = (
                     "Yahoo's last trade is {}, before the {} bar's close: it counts once Yahoo "
@@ -545,6 +561,7 @@ def evaluate(
                 "bar_start": hm(b["et"]),
                 "closes": ampm(b["end"]),
                 "price": r2(b["c"]),
+                "price_eur": _fx.eur(r2(b["c"]), rate),
             }
     res["_bars"] = bars
     res["bars_closed"] = len(bars)
@@ -564,9 +581,12 @@ def evaluate(
     or_bars = [b for b in bars if b["slot"] < n_or]
     avg_vol = (sum(b["v"] for b in or_bars) / float(len(or_bars))) if or_bars else None
     if or_bars:
+        or_high, or_low = r2(max(b["h"] for b in or_bars)), r2(min(b["l"] for b in or_bars))
         res["opening_range"] = {
-            "high": r2(max(b["h"] for b in or_bars)),
-            "low": r2(min(b["l"] for b in or_bars)),
+            "high": or_high,
+            "high_eur": _fx.eur(or_high, rate),
+            "low": or_low,
+            "low_eur": _fx.eur(or_low, rate),
             "minutes": or_minutes,
             "bars": len(or_bars),
             "of": n_or,
@@ -591,6 +611,7 @@ def evaluate(
     else:
         lvl = float(level)
     res["level"] = r2(lvl)
+    res["level_eur"] = _fx.eur(r2(lvl), rate)
 
     first_slot = n_or if setup == "orb" else 0
     trig, thin = None, []
@@ -609,6 +630,7 @@ def evaluate(
         res["last"] = {
             "bar_start": hm(last["et"]),
             "close": r2(last["c"]),
+            "close_eur": _fx.eur(r2(last["c"]), rate),
             "vs_level_pct": r2(100.0 * (last["c"] / lvl - 1)),
         }
 
@@ -627,6 +649,7 @@ def evaluate(
             "bar_start": hm(trig["et"]),
             "bar_index": trig["slot"],
             "price": r2(trig["c"]),
+            "price_eur": _fx.eur(r2(trig["c"]), rate),
             "close": trig["c"],
             "volume": trig["v"],
             "volume_x": r2(vx),
@@ -645,7 +668,7 @@ def evaluate(
             status="no-data", phase="open", reason=f"Yahoo sent no bars for {day.isoformat()} yet"
         )
         return res
-    what = f"close above the range high ${lvl:.2f}" if setup == "orb" else f"close above ${lvl:.2f}"
+    what = f"close above the range high {m(lvl)}" if setup == "orb" else f"close above {m(lvl)}"
     if local >= cutoff and not (pending and pending["end"] <= cutoff):
         res.update(
             status="expired",
@@ -658,38 +681,39 @@ def evaluate(
     res["phase"] = "open"
     if last["c"] > lvl and last in thin:
         res["reason"] = (
-            "the {} bar closed above at ${:.2f} but on {:.2f}x the range's volume, under your {:.2f}x".format(
-                short(last["et"]), last["c"], last["v"] / avg_vol if avg_vol else 0, min_volume_x
+            "the {} bar closed above at {} but on {:.2f}x the range's volume, under your {:.2f}x".format(
+                short(last["et"]), m(last["c"]), last["v"] / avg_vol if avg_vol else 0, min_volume_x
             )
         )
     elif last["c"] > lvl and last["end"] < before:
-        res["reason"] = (
-            "the {} bar closed above at ${:.2f}, but no entries before {} (config)".format(
-                short(last["et"]), last["c"], short(before)
-            )
+        res["reason"] = "the {} bar closed above at {}, but no entries before {} (config)".format(
+            short(last["et"]), m(last["c"]), short(before)
         )
     else:
         gap = lvl - last["c"]
-        res["reason"] = "last close ${:.2f} ({} bar), ${:.2f} {} {} ({:+.2f}%)".format(
-            last["c"],
+        res["reason"] = "last close {} ({} bar), {} {} {} ({:+.2f}%)".format(
+            m(last["c"]),
             short(last["et"]),
-            abs(gap),
+            m(abs(gap)),
             "under" if gap >= 0 else "over",
-            f"the range high ${lvl:.2f}" if setup == "orb" else f"the level ${lvl:.2f}",
+            f"the range high {m(lvl)}" if setup == "orb" else f"the level {m(lvl)}",
             100.0 * (last["c"] / lvl - 1),
         )
     return res
 
 
 def public(res):
-    """The result without the internal bar list, ready for JSON."""
-    return {k: v for k, v in res.items() if not k.startswith("_")}
+    """The result without the internal bar list, ready for JSON (plus the "fx" block)."""
+    out = {k: v for k, v in res.items() if not k.startswith("_")}
+    out["fx"] = _fx.to_json(res.get("_fx"))
+    return out
 
 
 def entry_doc(res, now_utc):
     """The entry report, the contract shape intraday-exit-planner reads (plus a plain-words reason)."""
     t = res.get("trigger") or {}
     orr = res.get("opening_range")
+    rate = res.get("_fx")
     return {
         "created_by": "intraday-entry-timer",
         "symbol": res["symbol"],
@@ -701,14 +725,23 @@ def entry_doc(res, now_utc):
         "bar_start": t.get("bar_start"),
         "bar_index": t.get("bar_index"),
         "price": t.get("price"),
+        "price_eur": _fx.eur(t.get("price"), rate),
         "level": res.get("level"),
+        "level_eur": _fx.eur(res.get("level"), rate),
         "interval": res["interval"],
-        "opening_range": {"high": orr["high"], "low": orr["low"], "minutes": orr["minutes"]}
+        "opening_range": {
+            "high": orr["high"],
+            "low": orr["low"],
+            "minutes": orr["minutes"],
+            "high_eur": _fx.eur(orr["high"], rate),
+            "low_eur": _fx.eur(orr["low"], rate),
+        }
         if orr
         else None,
         "source": "yahoo",
         "checked_at": iso(now_utc),
         "reason": res.get("reason"),
+        "fx": _fx.to_json(rate),
     }
 
 
@@ -722,6 +755,7 @@ def markdown_report(res):
     """The entry check as a Markdown report."""
     t = res.get("trigger") or {}
     orr = res.get("opening_range")
+    rate = res.get("_fx")
     out = [
         "# Intraday Entry Timer: {} {}".format(res["symbol"], res["date"]),
         "",
@@ -731,16 +765,18 @@ def markdown_report(res):
     ]
     if orr:
         out.append(
-            "- **Opening range:** high ${:.2f}, low ${:.2f} ({:d} minutes)".format(
-                orr["high"], orr["low"], orr["minutes"]
+            "- **Opening range:** high {}, low {} ({:d} minutes)".format(
+                _fx.usd_eur(orr["high"], rate), _fx.usd_eur(orr["low"], rate), orr["minutes"]
             )
         )
     if t:
         out.append(
-            "- **Trigger:** {} at ${:.2f} (bar {:d}, {:+.2f}% over the level)".format(
-                t["time"], t["price"], t["bar_index"], t["pct_over"]
+            "- **Trigger:** {} at {} (bar {:d}, {:+.2f}% over the level)".format(
+                t["time"], _fx.usd_eur(t["price"], rate), t["bar_index"], t["pct_over"]
             )
         )
+    if rate:
+        out.append("- **Euros:** " + _fx.note(rate))
     out += ["", "## Reading", ""] + ["- " + line for line in describe(res)]
     out += ["", "*Free Yahoo bars, unofficial and can lag. Nothing was placed.*"]
     return out
@@ -777,7 +813,7 @@ def setup_name(res):
     if res["setup"] == "orb":
         return "opening-range breakout ({:d}-minute range)".format(res["or_minutes"])
     return (
-        "close above ${:.2f}".format(res["level"])
+        "close above {}".format(_fx.usd_eur(res["level"], res.get("_fx")))
         if res["level"] is not None
         else "close above a level"
     )
@@ -786,6 +822,11 @@ def setup_name(res):
 def describe(res):
     """Plain lines for a person."""
     when = datetime.datetime.strptime(res["now"], "%Y-%m-%d %H:%M:%S")
+    rate = res.get("_fx")
+
+    def m(x):
+        return _fx.usd_eur(x, rate)
+
     bars = "5-minute" if res["interval"] == "5m" else "1-minute"
     head = "{}  {} {} ET  {} on {} bars (Yahoo, free, can lag)".format(
         res["symbol"], when.strftime("%a %Y-%m-%d"), when.strftime("%H:%M"), setup_name(res), bars
@@ -802,11 +843,11 @@ def describe(res):
         start = datetime.datetime.strptime(res["opens"], "%H:%M")
         end = start + datetime.timedelta(minutes=orr["minutes"])
         out.append(
-            "Opening range {}-{}: high ${:.2f}, low ${:.2f} ({:d} of {:d} bars{}).".format(
+            "Opening range {}-{}: high {}, low {} ({:d} of {:d} bars{}).".format(
                 short(start),
                 short(end),
-                orr["high"],
-                orr["low"],
+                m(orr["high"]),
+                m(orr["low"]),
                 orr["bars"],
                 orr["of"],
                 "" if orr["complete"] else ", still forming",
@@ -816,13 +857,13 @@ def describe(res):
     t = res.get("trigger")
     if t:
         out.append(
-            "TRIGGERED {} at ${:.2f}: the {} bar (bar {:d}) closed above {} ${:.2f} ({:+.2f}%{}).".format(
+            "TRIGGERED {} at {}: the {} bar (bar {:d}) closed above {} {} ({:+.2f}%{}).".format(
                 t["time"],
-                t["price"],
+                m(t["price"]),
                 short(datetime.datetime.strptime(t["bar_start"], "%H:%M")),
                 t["bar_index"],
                 "the range high" if res["setup"] == "orb" else "the level",
-                res["level"],
+                m(res["level"]),
                 t["pct_over"],
                 (", {:.2f}x the range's volume".format(t["volume_x"]))
                 if res.get("min_volume_x") and t.get("volume_x")
@@ -832,8 +873,8 @@ def describe(res):
         step = INTERVALS[res["interval"]] // 60
         if res.get("minutes_since", 0) > step and res.get("last"):
             out.append(
-                "That was {:d} minutes ago; the last close is ${:.2f} ({} bar). A late entry is a different trade: the price, the stop distance and the odds have moved.".format(
-                    res["minutes_since"], res["last"]["close"], res["last"]["bar_start"]
+                "That was {:d} minutes ago; the last close is {} ({} bar). A late entry is a different trade: the price, the stop distance and the odds have moved.".format(
+                    res["minutes_since"], m(res["last"]["close"]), res["last"]["bar_start"]
                 )
             )
         if res.get("data_note"):
@@ -853,8 +894,8 @@ def describe(res):
             out.append(res["lag_note"] + ".")
         elif f and res["status"] == "waiting" and res["phase"] in ("open", "forming"):
             out.append(
-                "The {} bar is still forming (${:.2f} so far, closes {}); it does not count until it closes.".format(
-                    f["bar_start"].lstrip("0"), f["price"], f["closes"]
+                "The {} bar is still forming ({} so far, closes {}); it does not count until it closes.".format(
+                    f["bar_start"].lstrip("0"), m(f["price"]), f["closes"]
                 )
             )
         if res["status"] == "expired":
@@ -877,21 +918,26 @@ def bar_line(b, res):
     lvl = res.get("level")
     t = res.get("trigger")
     n_or = orr.get("of") or 0
+    rate = res.get("_fx")
+
+    def m(x):
+        return _fx.usd_eur(x, rate)
+
     if res["setup"] == "orb" and b["slot"] < n_or:
         seen = [x for x in res["_bars"] if x["slot"] <= b["slot"]]
-        note = "range so far ${:.2f} to ${:.2f}".format(
-            min(x["l"] for x in seen), max(x["h"] for x in seen)
+        note = "range so far {} to {}".format(
+            m(min(x["l"] for x in seen)), m(max(x["h"] for x in seen))
         )
         if b["slot"] == n_or - 1:
-            note = "opening range set: high ${:.2f}, low ${:.2f}".format(orr["high"], orr["low"])
+            note = "opening range set: high {}, low {}".format(m(orr["high"]), m(orr["low"]))
     elif t and t["bar_index"] == b["slot"]:
-        note = "TRIGGERED: closed above ${:.2f} ({:+.2f}%). Get in now if you take it: {}, ${:.2f}".format(
-            lvl, t["pct_over"], t["time"], t["price"]
+        note = "TRIGGERED: closed above {} ({:+.2f}%). Get in now if you take it: {}, {}".format(
+            m(lvl), t["pct_over"], t["time"], m(t["price"])
         )
     elif lvl is None:
         note = ""
     elif b["c"] > lvl:
-        note = f"above ${lvl:.2f}"
+        note = f"above {m(lvl)}"
         if res["setup"] == "level" or b["slot"] >= n_or:
             avg = orr.get("avg_volume")
             if res.get("min_volume_x") and avg:
@@ -903,8 +949,8 @@ def bar_line(b, res):
             ):
                 note += ", but no entries before {}".format(res["no_entries_before"])
     else:
-        note = "${:.2f} under ${:.2f}".format(lvl - b["c"], lvl)
-    return "{:>5} bar  closed ${:.2f}  {}".format(start, b["c"], note)
+        note = "{} under {}".format(m(lvl - b["c"]), m(lvl))
+    return "{:>5} bar  closed {}  {}".format(start, m(b["c"]), note)
 
 
 # ---------------------------------------------------------------- watch
@@ -1059,6 +1105,7 @@ def cmd_check(a):
     opts = _opts(a, cfg)
     sym = a.symbol.upper()
     chart, now = _load(a, sym, parse_now(a.now) if a.now else None)
+    opts["rate"] = _fx.from_args(a, offline=bool(a.offline))
     res = evaluate(chart, now, **opts)
     written = None
     if not a.no_write:
@@ -1068,6 +1115,8 @@ def cmd_check(a):
     else:
         for line in describe(res):
             print(line)
+        if opts["rate"]:
+            print(_fx.note(opts["rate"]))
         if written:
             print("Wrote {} and {} (status {}).".format(written[0], written[1], res["status"]))
     return 0 if res["status"] == "triggered" else 1
@@ -1104,6 +1153,9 @@ def cmd_watch(a):
     def emit(line):
         print(line, flush=True)
 
+    opts["rate"] = _fx.from_args(a, offline=bool(a.offline))  # once, for the whole watch
+    if opts["rate"]:
+        emit(_fx.note(opts["rate"]))
     code, _ = watch_loop(
         provider, now_fn, sleep_fn, emit, opts, every=a.every, until=until, on_trigger=on_trigger
     )
@@ -1136,6 +1188,7 @@ def cmd_watchlist(a):
     if a.offline and not os.path.isdir(a.offline):
         raise EntryError("watchlist --offline wants a folder of <TICKER>.json files")
     now = parse_now(a.now) if a.now else None
+    rate = opts["rate"] = _fx.from_args(a, offline=bool(a.offline))  # once, not per symbol
     rows = []
     for i, h in enumerate(hits):
         sym = str(h["symbol"]).upper()
@@ -1159,11 +1212,12 @@ def cmd_watchlist(a):
             )
         )
     else:
-        print(
-            "{:<6}  {:<9}  {:<8}  {:<8}  {:<9}  {:<9}  {}".format(
-                "SYMBOL", "STATUS", "TIME", "PRICE", "LEVEL", "LAST", "VS LEVEL"
-            )
-        )
+        row_fmt = "{:<6}  {:<9}  {:<8}  {:<8}  {:<9}  {:<9}  {:<8}"
+        eur_fmt = "  {:<9}  {:<9}  {}"  # euro columns, only with a rate
+        head = row_fmt.format("SYMBOL", "STATUS", "TIME", "PRICE", "LEVEL", "LAST", "VS LEVEL")
+        if rate:
+            head += eur_fmt.format("PRICE €", "LEVEL €", "LAST €")
+        print(head.rstrip())
         for s, r, e in rows:
             if e:
                 print(f"{s:<6}  error: {e}")
@@ -1173,23 +1227,30 @@ def cmd_watchlist(a):
             status = (
                 SHORT.get(r["phase"], r["status"]) if r["status"] != "triggered" else "triggered"
             )
-            print(
-                "{:<6}  {:<9}  {:<8}  {:<8}  {:<9}  {:<9}  {}".format(
-                    s,
-                    status[:9],
-                    t.get("time") or "-",
-                    ("${:.2f}".format(t["price"])) if t else "-",
-                    ("${:.2f}".format(r["level"])) if r.get("level") is not None else "-",
-                    ("${:.2f}".format(last["close"])) if last else "-",
-                    ("{:+.2f}%".format(last["vs_level_pct"]))
-                    if last.get("vs_level_pct") is not None
-                    else "-",
-                )
+            line = row_fmt.format(
+                s,
+                status[:9],
+                t.get("time") or "-",
+                ("${:.2f}".format(t["price"])) if t else "-",
+                ("${:.2f}".format(r["level"])) if r.get("level") is not None else "-",
+                ("${:.2f}".format(last["close"])) if last else "-",
+                ("{:+.2f}%".format(last["vs_level_pct"]))
+                if last.get("vs_level_pct") is not None
+                else "-",
             )
+            if rate:
+                line += eur_fmt.format(
+                    _fx.eur_only(t["price"], rate) if t else "-",
+                    _fx.eur_only(r["level"], rate) if r.get("level") is not None else "-",
+                    _fx.eur_only(last["close"], rate) if last else "-",
+                )
+            print(line.rstrip())
         n = sum(1 for _, r, _ in rows if r and r["status"] == "triggered")
         print(
             f"{n:d} of {len(rows):d} triggered. Pick one, then: intraday_entry.py check <TICKER>, and intraday-exit-planner."
         )
+        if rate:
+            print(_fx.note(rate))
         print("Free Yahoo bars, unofficial and can lag. Nothing was placed.")
     return 0 if any(r and r["status"] == "triggered" for _, r, _ in rows) else 1
 
@@ -1227,6 +1288,7 @@ def main(argv=None):
         p.add_argument(
             "--output-dir", default=DEFAULT_OUTPUT_DIR, help="reports folder (default reports/)"
         )
+        _fx.add_cli_flags(p)
 
     p = sub.add_parser("check", help="the setup's status right now")
     p.add_argument("symbol")

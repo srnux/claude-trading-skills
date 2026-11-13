@@ -42,6 +42,12 @@ Quotes (free, delayed, unofficial; for alerts only, never for timing an order):
 NYSE calendar: holidays and early closes come from the repository's shared
 XNYS calendar (_market_calendar.py, pandas-market-calendars).
 
+Euros: quote, check, add and list show every dollar price with its euro value,
+"$165.40 (€149.60)", at the live EUR/USD rate (Yahoo EURUSD=X, fetched once per
+run). --eurusd RATE pins it, --no-eur shows dollars only, INTRADAY_EURUSD=off|RATE
+does the same from the environment; --offline never fetches. Rule levels stay
+in US dollars (they are compared with US-dollar quotes); only the display changes.
+
 State lives in state/intraday/: alerts.json (the rules), alerts_state.json
 (what rang) and prices.json (the last quotes).
 """
@@ -61,6 +67,7 @@ import time
 import urllib.error
 import urllib.request
 
+import _fx
 import _market_calendar
 
 UA = "Mozilla/5.0 (compatible; claude-trading-skills intraday-alerts)"
@@ -492,8 +499,9 @@ def ring_time(rule, status):
     return at
 
 
-def evaluate(rules, quotes, status, state, now_utc):
-    """Pure function. Returns (rings, new_state). Each ring: {id, symbol, message}."""
+def evaluate(rules, quotes, status, state, now_utc, fx=None):
+    """Pure function. Returns (rings, new_state). Each ring: {id, symbol, message}.
+    With an fx rate every dollar price in a message also shows euros."""
     state = json.loads(json.dumps(state or {}))
     rung = state.setdefault("rung", {})
     today = status["date"]
@@ -557,13 +565,13 @@ def evaluate(rules, quotes, status, state, now_utc):
                     {
                         "id": rid,
                         "symbol": sym,
-                        "message": "{} {} ${:.2f}: {} your {} ${}{}.".format(
+                        "message": "{} {} {}: {} your {} {}{}.".format(
                             sym,
                             "is" if status["open"] else "last",
-                            p,
+                            _usd(p, fx),
                             word,
                             label,
-                            _n(r["price"]),
+                            _usd(r["price"], fx, _n),
                             (" (" + r["note"] + ")") if r.get("note") else "",
                         ),
                     }
@@ -583,7 +591,7 @@ def evaluate(rules, quotes, status, state, now_utc):
                     {
                         "id": rid,
                         "symbol": sym,
-                        "message": f"{sym} moved {move:+.2f}% to ${p:.2f} (from ${float(ref):.2f}).",
+                        "message": f"{sym} moved {move:+.2f}% to {_usd(p, fx)} (from {_usd(float(ref), fx)}).",
                     }
                 )
                 rung[rid] = stamp
@@ -594,6 +602,18 @@ def evaluate(rules, quotes, status, state, now_utc):
 def _n(x):
     x = float(x)
     return str(int(x)) if x == int(x) else f"{x:.2f}"
+
+
+def _usd(x, fx, plain=lambda v: f"{float(v):.2f}"):
+    """'$165.40 (€149.60)' with a rate; without one the dollar text as before."""
+    return "$" + plain(x) if fx is None else _fx.usd_eur(x, fx)
+
+
+def _levels(rule, fx):
+    """' = stop $358.32 (€325.75)' for a price rule when a rate is known, else ''."""
+    if fx is None or not isinstance(rule.get("price"), (int, float)):
+        return ""
+    return " = {} {}".format(rule.get("type", "level"), _fx.usd_eur(rule["price"], fx))
 
 
 def rules_from_plan(plan, cfg_flat_by=None):
@@ -688,28 +708,39 @@ def cmd_quote(a):
         raise AlertError("which tickers? alerts.py quote TSLA KO, or --holdings")
     now = parse_now(a.now)
     quotes, errors = get_quotes(syms, a.source, a.offline)
+    fx = _fx.from_args(a, offline=bool(a.offline)) if quotes else None  # once per run
     if a.write and quotes:
         write_prices(a.write, quotes, now, a.source)
     if a.json:
-        print(json.dumps({"quotes": quotes, "errors": errors}, indent=2))
+        shown = {
+            s: dict(
+                q,
+                price_eur=_fx.eur(q["price"], fx),
+                prev_close_eur=_fx.eur(q.get("prev_close"), fx),
+            )
+            for s, q in quotes.items()
+        }
+        print(json.dumps({"quotes": shown, "errors": errors, "fx": _fx.to_json(fx)}, indent=2))
     else:
         for s in syms:
             q = quotes.get(s)
             if q:
                 chg = ""
                 if q.get("prev_close"):
-                    chg = " ({:+.2f}% vs prev close ${:.2f})".format(
-                        100.0 * (q["price"] / q["prev_close"] - 1), q["prev_close"]
+                    chg = " ({:+.2f}% vs prev close {})".format(
+                        100.0 * (q["price"] / q["prev_close"] - 1), _usd(q["prev_close"], fx)
                     )
                 print(
-                    "{:<6} ${:.2f}{}  {}  [{}]".format(
-                        s, q["price"], chg, q.get("time", ""), q["source"]
+                    "{:<6} {}{}  {}  [{}]".format(
+                        s, _usd(q["price"], fx), chg, q.get("time", ""), q["source"]
                     )
                 )
         for e in errors:
             print("error: " + e)
         if a.write and quotes:
             print(f"Wrote {len(quotes):d} price(s) to {a.write}.")
+        if fx:
+            print(_fx.note(fx))
         print(
             "Quotes are free, delayed and unofficial: for alerts only. Your broker's price is the one that fills."
         )
@@ -728,8 +759,9 @@ def cmd_check(a):
         [str(r.get("symbol", "")).upper() for r in watched if r.get("type") not in NO_QUOTE]
     )
     quotes, errors = get_quotes(syms, a.source, a.offline) if syms else ({}, [])
+    fx = _fx.from_args(a, offline=bool(a.offline)) if syms else None  # once per run
     state = _read(a.state, {})
-    rings, state = evaluate(rules, quotes, status, state, now)
+    rings, state = evaluate(rules, quotes, status, state, now, fx=fx)
     if not a.no_write:
         _write(a.state, state)
         if quotes:
@@ -742,6 +774,8 @@ def cmd_check(a):
                     "rings": rings,
                     "errors": errors,
                     "quotes": {s: q["price"] for s, q in quotes.items()},
+                    "quotes_eur": {s: _fx.eur(q["price"], fx) for s, q in quotes.items()},
+                    "fx": _fx.to_json(fx),
                 },
                 indent=2,
             )
@@ -761,7 +795,9 @@ def cmd_check(a):
                     (
                         ", "
                         + ", ".join(
-                            "{} ${:.2f}".format(s, quotes[s]["price"]) for s in syms if s in quotes
+                            "{} {}".format(s, _usd(quotes[s]["price"], fx))
+                            for s in syms
+                            if s in quotes
                         )
                     )
                     if quotes
@@ -770,6 +806,8 @@ def cmd_check(a):
             )
         for e in errors:
             print("error: " + e)
+        if fx and quotes:
+            print(_fx.note(fx))
         if rings:
             print(
                 "An alert is information, not an order. A bracket's stop-loss and take-profit already sit at "
@@ -798,8 +836,9 @@ def cmd_add(a):
                 state["rung"].pop(i, None)
             _write(a.state, state)
         _write(a.rules, doc)
+        fx = _fx.from_args(a)  # once per run
         for r in new:
-            print("Added {}: {}".format(r["id"], json.dumps(r)))
+            print("Added {}: {}{}".format(r["id"], json.dumps(r), _levels(r, fx)))
         print(
             "Run alerts.py check every few minutes while the trade is open (a scheduled task or /loop). "
             "Free quotes are delayed; the broker's bracket orders are what actually stop you out."
@@ -855,7 +894,8 @@ def cmd_add(a):
         raise AlertError("a rule with id {} already exists".format(rule["id"]))
     doc["rules"].append(rule)
     _write(a.rules, doc)
-    print("Added {}: {}".format(rule["id"], json.dumps(rule)))
+    fx = _fx.from_args(a) if "price" in rule else None
+    print("Added {}: {}{}".format(rule["id"], json.dumps(rule), _levels(rule, fx)))
     return 0
 
 
@@ -865,16 +905,21 @@ def cmd_list(a):
     if not doc.get("rules"):
         print("No rules yet.")
         return 1
+    priced = any(isinstance(r.get("price"), (int, float)) for r in doc["rules"])
+    fx = _fx.from_args(a) if priced else None  # once per run
     for r in doc["rules"]:
         rid = r.get("id")
         rung = state.get("rung", {}).get(rid)
         print(
-            "{:<24} {}{}".format(
+            "{:<24} {}{}{}".format(
                 rid,
                 json.dumps({k: v for k, v in r.items() if k != "id"}),
+                _levels(r, fx),
                 (f"  (rang {rung})") if rung else "",
             )
         )
+    if fx:
+        print(_fx.note(fx))
     return 0
 
 
@@ -900,6 +945,7 @@ def main(argv=None):
         )
         p.add_argument("--now", help="pretend it is this time (no offset = New York time)")
         p.add_argument("--json", action="store_true")
+        _fx.add_cli_flags(p)
 
     p = sub.add_parser("clock", help="is the NYSE open?")
     p.add_argument("--now")
@@ -965,9 +1011,11 @@ def main(argv=None):
     p.add_argument("--rearm", action="store_true")
     p.add_argument("--note")
     p.add_argument("--id")
+    _fx.add_cli_flags(p)
     p = sub.add_parser("list", help="list the rules")
     p.add_argument("--rules", default=RULES)
     p.add_argument("--state", default=STATE)
+    _fx.add_cli_flags(p)
     p = sub.add_parser("reset", help="re-arm a rule that rang")
     p.add_argument("id")
     p.add_argument("--state", default=STATE)

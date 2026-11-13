@@ -43,7 +43,7 @@ Collect from the user:
 - **Mode C (Kelly Criterion)**: Win rate, average win, average loss; optionally entry and stop for share calculation
 - **Optional constraints**: Max position % of account, max sector %, current sector exposure
 - **Optional share mode**: Whole shares by default, or fractional shares with `--fractional --share-precision N` when supported by the broker
-- **Mode D (Intraday)**: The plan report from `intraday-exit-planner`, the account size, and the max loss per trade (`--max-loss-usd`, or `--risk-pct` of the account). Optional: `--max-position-pct`, `--max-order-usd`, `--cash-buffer-pct`, `--available-cash`, `--min-order-usd`, `--min-reward-risk` (default 1.0)
+- **Mode D (Intraday)**: The plan report from `intraday-exit-planner`, the account size, and the max loss per trade (`--max-loss-usd`, or `--risk-pct` of the account). Optional: `--max-position-pct`, `--max-order-usd`, `--cash-buffer-pct`, `--available-cash`, `--min-order-usd`, `--min-reward-risk` (default 1.0), `--eurusd RATE` / `--no-eur` (euro display)
 
 If the user provides a stock ticker but not specific prices, use available tools to look up the current price and suggest entry/stop levels based on technical analysis.
 
@@ -131,6 +131,20 @@ It sizes at the plan's entry, the limit price with `--limit-price`, or a fresh c
 TSLA on 2026-10-19 (entry 364.18, stop 358.32, target 370.04, $5,000 account, 10% buffer, $50 max loss): max loss 50 / 5.86 = **8 shares (binds)**, position cap 10, max order 10, cash 12. 8 shares = $2,913.44, max loss at the stop 8 x 5.86 = $46.88. With the 10:52 quote of 366.48 the same plan sizes at 8.16 risk a share and reward:risk falls to 0.44: refused, because the move it was waiting for has mostly happened.
 
 The report carries a `bracket_order` in the shape of Alpaca's `place_stock_order` (strings for qty and prices). Nothing is placed. Hand it to `pre-trade-discipline-gate`, then the user's explicit yes for that exact order, then `portfolio-manager`.
+
+Euros: intraday mode shows every dollar amount with its euro equivalent, `$46.88 (€42.62)`, at the live EUR/USD rate (Yahoo `EURUSD=X`, fetched once a run) and prints the rate once. The limits (`--account-size`, `--max-loss-usd`, `--max-order-usd`) and all sizing stay in US dollars; the euros are display only. `--eurusd RATE` pins the rate, `--no-eur` shows dollars only, and the `INTRADAY_EURUSD` environment variable (`off` or a rate) does the same. Without a rate the output is dollars only. The JSON adds `"fx": {"eurusd", "as_of", "source"}` and `*_eur` siblings (null without a rate), never changing a dollar field:
+
+```json
+{"parameters": {"sized_at": 364.18, "sized_at_eur": 331.07, "stop_price": 358.32, "stop_price_eur": 325.75,
+                "target_price": 370.04, "target_price_eur": 336.4, "risk_per_share": 5.86, "risk_per_share_eur": 5.33,
+                "entry_plan_eur": 331.07, "account_size_eur": 4545.45, "max_loss_eur": 45.45, "cash_buffer_eur": 454.55},
+ "constraints_applied": [{"type": "max_loss", "limit_usd": 50.0, "limit_eur": 45.45, "max_shares": 8}],
+ "final_position_value": 2913.44, "final_position_value_eur": 2648.58,
+ "final_risk_dollars": 46.88, "final_risk_eur": 42.62, "max_loss_at_stop_eur": 42.62,
+ "fx": {"eurusd": 1.1, "as_of": "2026-10-19T14:15:00Z", "source": "pinned"}}
+```
+
+The `bracket_order` fields stay in dollars, exactly as Alpaca takes them. The classic (non-intraday) modes never convert.
 
 ### Step 3: Load Methodology Reference
 

@@ -93,7 +93,11 @@ It refuses a stop at or above the entry, a target at or below it, and a stop too
 
 Replay it with `intraday-time-machine`, then size it with `position-sizer --intraday-plan`. Offer `intraday-alerts` for the stop, the target and the flat-by time.
 
-Flags: `--stop or-mid|or-low|price:X|pct:X|atr:K`, `--target 2R|1R|1.5R|price:X`, `--flat-by HH:MM`, `--min-reward-risk` (1.0, warns only), `--date`, `--time`, `--entry-bar`, `--interval`, `--offline FILE`, `--now`, `--output-dir` (reports/), `--no-write`, `--json`. `show` prints the newest plan.
+Flags: `--stop or-mid|or-low|price:X|pct:X|atr:K`, `--target 2R|1R|1.5R|price:X`, `--flat-by HH:MM`, `--min-reward-risk` (1.0, warns only), `--date`, `--time`, `--entry-bar`, `--interval`, `--offline FILE`, `--now`, `--output-dir` (reports/), `--no-write`, `--json`, `--eurusd RATE`, `--no-eur`. `show` prints the newest plan (it takes `--eurusd` and `--no-eur` too).
+
+### Euros
+
+Every dollar price (entry, stop, target, risk a share) also shows euros, `$364.18 (€331.07)`, at the live EUR/USD rate (Yahoo `EURUSD=X`, fetched once a run, never with `--offline`), and the rate is printed once. `--eurusd RATE` pins it, `--no-eur` shows dollars only, and the `INTRADAY_EURUSD` environment variable (`off` or a rate) does the same. Without a rate the plan is dollars only. The plan math stays in dollars; euros are display only. Read euro prices back next to the dollar ones, and say broker EUR quotes from European venues can differ by a few cents.
 
 ---
 
@@ -105,5 +109,6 @@ Flags: `--stop or-mid|or-low|price:X|pct:X|atr:K`, `--target 2R|1R|1.5R|price:X`
 
 **Scripts:**
 
+- `skills/intraday-exit-planner/scripts/_fx.py`
 - `skills/intraday-exit-planner/scripts/_market_calendar.py`
 - `skills/intraday-exit-planner/scripts/intraday_exit.py`

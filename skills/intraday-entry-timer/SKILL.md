@@ -64,7 +64,11 @@ Say the time and the price, and that nothing was placed. If the trigger is more 
 
 Hand off to `intraday-exit-planner` to set the stop and the target BEFORE anything is bought.
 
-Flags: `--setup orb|level`, `--or-minutes` (15), `--interval 5m|1m`, `--level PRICE`, `--min-volume-x X`, `--no-entries-before` (09:45), `--no-entries-after` (15:30), `--now "2026-10-19 10:15"` (New York time) to replay a day, `--offline PATH` (saved Yahoo chart JSON, `.json`/`.json.gz`, or a folder of `<TICKER>.json`), `--output-dir` (reports/), `--no-write`, `--json`. Read `references/entry_rules.md` for the full rule.
+Flags: `--setup orb|level`, `--or-minutes` (15), `--interval 5m|1m`, `--level PRICE`, `--min-volume-x X`, `--no-entries-before` (09:45), `--no-entries-after` (15:30), `--now "2026-10-19 10:15"` (New York time) to replay a day, `--offline PATH` (saved Yahoo chart JSON, `.json`/`.json.gz`, or a folder of `<TICKER>.json`), `--output-dir` (reports/), `--no-write`, `--json`, `--eurusd RATE`, `--no-eur`. Read `references/entry_rules.md` for the full rule.
+
+### Euros
+
+Every dollar price (trigger, level, opening range, last close) is also shown in euros, e.g. `$364.18 (€331.07)`, at the live EUR/USD rate (Yahoo `EURUSD=X`, fetched once per run, unofficial and can lag). One line per run names the rate used. `--eurusd RATE` pins the rate (dollars per euro), `--no-eur` shows dollars only, and the env var `INTRADAY_EURUSD` (`off` or a rate) overrides the live fetch. `--offline` never fetches a rate. When no rate is available, it prints dollars only. Broker EUR quotes from European venues can differ by a few cents: tell the user the euro figure is a conversion, not the venue's price. `watchlist` adds `PRICE €`, `LEVEL €` and `LAST €` columns.
 
 ## Output Format
 
@@ -73,9 +77,13 @@ Flags: `--setup orb|level`, `--or-minutes` (15), `--interval 5m|1m`, `--level PR
 ```json
 {"created_by": "intraday-entry-timer", "symbol": "TSLA", "setup": "orb", "side": "buy", "date": "2026-10-19",
  "status": "triggered", "time": "10:15 AM", "bar_start": "10:10", "bar_index": 8, "price": 364.18,
- "level": 362.18, "interval": "5m", "opening_range": {"high": 362.18, "low": 354.47, "minutes": 15},
- "source": "yahoo", "checked_at": "2026-10-19T14:15:00Z", "reason": null}
+ "level": 362.18, "interval": "5m", "opening_range": {"high": 362.18, "low": 354.47, "minutes": 15, "high_eur": 329.25, "low_eur": 322.25},
+ "source": "yahoo", "checked_at": "2026-10-19T14:15:00Z", "reason": null,
+ "price_eur": 331.07, "level_eur": 329.25,
+ "fx": {"eurusd": 1.1, "as_of": "2026-10-19T14:15:02Z", "source": "pinned"}}
 ```
+
+The dollar fields never change (`intraday-exit-planner` reads them). `price_eur`, `level_eur` and `opening_range.high_eur` / `low_eur` sit next to them, and `fx` names the rate; all are `null` without a rate. `check --json` adds the same `fx` block and `*_eur` fields (`level_eur`, `trigger.price_eur`, `last.close_eur`, `opening_range.high_eur` / `low_eur`).
 
 Status is `triggered`, `waiting`, `expired` or `no-data`. Exit code 0 = triggered, 1 = anything else, 2 = NYSE calendar dependency missing.
 

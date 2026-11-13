@@ -650,3 +650,115 @@ class CalendarUnavailable(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EuroDisplay(unittest.TestCase):
+    """Prices also show euros at a pinned rate; stored rule levels stay in US dollars."""
+
+    def setUp(self):
+        import _fx
+
+        self.fx = _fx.FxRate(rate=1.1, as_of="2026-10-13T14:00:00Z", source="pinned")
+        self.q, _ = alerts.get_quotes(["AAPL", "BAC", "TSLA"], "yahoo", QDIR)
+        self.now = ny("2026-10-13T10:00")
+        self.open = alerts.market_status(self.now)
+        self.d = tempfile.mkdtemp()
+        self.rules = os.path.join(self.d, "alerts.json")
+        self.state = os.path.join(self.d, "alerts_state.json")
+        self.prices = os.path.join(self.d, "prices.json")
+
+    def tearDown(self):
+        shutil.rmtree(self.d)
+
+    def test_a_ring_shows_euros(self):
+        rules = [{"id": "aapl-340", "symbol": "AAPL", "type": "above", "price": 340}]
+        rings, _ = alerts.evaluate(rules, self.q, self.open, {}, self.now, fx=self.fx)
+        self.assertIn(
+            "AAPL is $341.27 (€310.25): at or above your alert level $340.00 (€309.09)",
+            rings[0]["message"],
+        )
+
+    def test_a_pct_move_ring_shows_euros(self):
+        rules = [{"id": "bac-1", "symbol": "BAC", "type": "pct_move", "pct": 1}]
+        rings, _ = alerts.evaluate(rules, self.q, self.open, {}, self.now, fx=self.fx)
+        self.assertIn("to $53.96 (€49.05) (from $", rings[0]["message"])
+
+    def test_without_a_rate_the_message_is_unchanged(self):
+        rules = [{"id": "aapl-340", "symbol": "AAPL", "type": "above", "price": 340}]
+        rings, _ = alerts.evaluate(rules, self.q, self.open, {}, self.now, fx=None)
+        self.assertIn("AAPL is $341.27: at or above your alert level $340.", rings[0]["message"])
+
+    def test_quote_text_and_json(self):
+        code, text, _ = run(["quote", "AAPL", "--offline", QDIR, "--eurusd", "1.1"])
+        self.assertEqual(code, 0)
+        self.assertIn("AAPL   $341.27 (€310.25)", text)
+        self.assertIn("1 € = $1.1000", text)
+        code, text, _ = run(["quote", "AAPL", "--offline", QDIR, "--eurusd", "1.1", "--json"])
+        doc = json.loads(text)
+        self.assertEqual(doc["fx"]["eurusd"], 1.1)
+        self.assertEqual(doc["fx"]["source"], "pinned")
+        self.assertEqual(doc["quotes"]["AAPL"]["price"], 341.27)
+        self.assertEqual(doc["quotes"]["AAPL"]["price_eur"], 310.25)
+
+    def test_quote_json_without_a_rate_has_null_fx(self):
+        code, text, _ = run(["quote", "AAPL", "--offline", QDIR, "--json"])
+        doc = json.loads(text)
+        self.assertIsNone(doc["fx"])
+        self.assertIsNone(doc["quotes"]["AAPL"]["price_eur"])
+        code, text, _ = run(["quote", "AAPL", "--offline", QDIR, "--eurusd", "1.1", "--no-eur"])
+        self.assertNotIn("€", text)
+
+    def test_the_env_var_sets_the_rate(self):
+        from unittest import mock
+
+        with mock.patch.dict(os.environ, {"INTRADAY_EURUSD": "1.1"}):
+            code, text, _ = run(["quote", "AAPL", "--offline", QDIR])
+        self.assertIn("$341.27 (€310.25)", text)
+
+    def test_check_add_and_list_show_euros_but_store_dollars(self):
+        code, text, _ = run(
+            [
+                "add",
+                "--from-plan",
+                "--plan",
+                PLAN,
+                "--rules",
+                self.rules,
+                "--state",
+                self.state,
+                "--eurusd",
+                "1.1",
+            ]
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("stop $358.32 (€325.75)", text)
+        self.assertIn("target $370.04 (€336.40)", text)
+        with open(self.rules) as fh:
+            stored = {r["id"]: r for r in json.load(fh)["rules"]}
+        self.assertEqual(stored["tsla-plan-stop"]["price"], 358.32)
+        self.assertNotIn("price_eur", stored["tsla-plan-stop"])
+
+        code, text, _ = run(
+            ["list", "--rules", self.rules, "--state", self.state, "--eurusd", "1.1"]
+        )
+        self.assertIn("$358.32 (€325.75)", text)
+
+        argv = ["check", "--rules", self.rules, "--state", self.state]
+        argv += ["--prices-out", self.prices, "--offline", QDIR, "--now", "2026-10-19 10:53"]
+        code, text, _ = run(argv + ["--eurusd", "1.1"])
+        self.assertIn("TSLA $366.48 (€333.16)", text)
+        code, text, _ = run(argv + ["--eurusd", "1.1", "--json"])
+        doc = json.loads(text)
+        self.assertEqual(doc["fx"]["eurusd"], 1.1)
+        self.assertEqual(doc["quotes"], {"TSLA": 366.475})
+        self.assertEqual(doc["quotes_eur"], {"TSLA": 333.16})
+        with open(self.prices) as fh:
+            self.assertEqual(json.load(fh)["prices"], {"TSLA": 366.475})
+
+    def test_check_json_without_a_rate(self):
+        run(["add", "--rules", self.rules, "--symbol", "AAPL", "--above", "350"])
+        argv = ["check", "--rules", self.rules, "--state", self.state, "--no-write"]
+        code, text, _ = run(argv + ["--offline", QDIR, "--now", "2026-10-13T10:00", "--json"])
+        doc = json.loads(text)
+        self.assertIsNone(doc["fx"])
+        self.assertEqual(doc["quotes_eur"], {"AAPL": None})

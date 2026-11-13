@@ -37,6 +37,11 @@ Reports: plan writes reports/intraday_exit_plan_<TICKER>_<date>.json and .md
 (the input of intraday-time-machine, position-sizer --intraday-plan and
 intraday-alerts) unless --no-write.
 
+Euros: every dollar price also shows euros, "$364.18 (€331.07)", at the live
+EUR/USD rate (fetched once; never with --offline). --eurusd RATE pins it,
+--no-eur or INTRADAY_EURUSD=off turns it off. The plan math stays in dollars;
+the JSON adds entry_eur, stop_eur, target_eur, risk_per_share_eur and "fx".
+
 A stop is a plan, not a guarantee: a gap or a fast market can fill past it.
 Exit codes: plan 0 = a plan, 1 = refused or an error. show 0 = a plan exists.
 """
@@ -55,6 +60,7 @@ import urllib.error
 import urllib.request
 from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal, InvalidOperation
 
+import _fx
 import _market_calendar
 
 UA = "Mozilla/5.0 (compatible; claude-trading-skills intraday-exit-planner)"
@@ -543,6 +549,14 @@ def atr_of(bars, n=ATR_BARS):
 # ---------------------------------------------------------------- plan
 
 
+def fx_rate(a, offline=False):
+    """The EUR/USD display rate for this run (once), or None. A bad --eurusd or env value is a PlanError."""
+    try:
+        return _fx.from_args(a, offline=offline)
+    except ValueError as e:
+        raise PlanError(str(e))
+
+
 def read_json(path, what):
     if not path or not os.path.exists(path):
         raise PlanError(f"no {what} at {path}")
@@ -662,7 +676,8 @@ def gather(a):
     return info
 
 
-def build_plan(a, now_utc):
+def build_plan(a, now_utc, rate=None):
+    """The plan in dollars. rate (an _fx.FxRate or None) only adds the *_eur display fields."""
     info = gather(a)
     cfg = plan_rules(a.min_reward_risk)
     stop_text = a.stop
@@ -724,22 +739,27 @@ def build_plan(a, now_utc):
         "date": day.isoformat(),
         "setup": info["setup"],
         "entry": float(c["entry"]),
+        "entry_eur": _fx.eur(c["entry"], rate),
         "entry_time": ampm(entry_time) if entry_time else None,
         "entry_bar": info["entry_bar"],
         "interval": info["interval"],
         "opening_range": orr,
         "stop": float(c["stop"]),
+        "stop_eur": _fx.eur(c["stop"], rate),
         "stop_rule": stop_rule,
         "stop_label": c["stop_label"],
         "target": float(c["target"]),
+        "target_eur": _fx.eur(c["target"], rate),
         "target_r": float(c["target_r"]),
         "target_label": c["target_label"],
         "risk_per_share": float(c["risk"]),
+        "risk_per_share_eur": _fx.eur(c["risk"], rate),
         "reward_risk": float(c["reward_risk"]),
         "flat_by": flat_by,
         "stop_detail": c["stop_detail"],
         "created_at": now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "note": NOTE,
+        "fx": _fx.to_json(rate),
     }
     if atr is not None:
         plan["atr"] = round(atr, 4)
@@ -763,7 +783,8 @@ def build_plan(a, now_utc):
     return plan, warnings
 
 
-def describe(plan):
+def describe(plan, rate=None):
+    """The plan for people. rate (an _fx.FxRate or None) adds euros next to each dollar price."""
     day = datetime.date.fromisoformat(plan["date"])
     setup = {"orb": "opening-range breakout", "level": "close above a level"}.get(
         plan["setup"], plan["setup"]
@@ -784,26 +805,34 @@ def describe(plan):
             "5-minute" if plan["interval"] == "5m" else "1-minute",
         )
     ]
-    out.append("  Entry         {}{}".format(money(plan["entry"]), when))
+    out.append("  Entry         {}{}".format(_fx.usd_eur(plan["entry"], rate), when))
     out.append(
         "  Stop          {}  {}{}".format(
-            money(plan["stop"]),
+            _fx.usd_eur(plan["stop"], rate),
             plan["stop_label"],
             (": " + plan["stop_detail"]) if plan.get("stop_detail") else "",
         )
     )
-    out.append("  Target        {}  {}".format(money(plan["target"]), plan["target_label"]))
-    out.append("  Risk a share  {} ({}% of the entry)".format(money(plan["risk_per_share"]), pct))
+    out.append(
+        "  Target        {}  {}".format(_fx.usd_eur(plan["target"], rate), plan["target_label"])
+    )
+    out.append(
+        "  Risk a share  {} ({}% of the entry)".format(
+            _fx.usd_eur(plan["risk_per_share"], rate), pct
+        )
+    )
     out.append("  Reward:risk   {}".format(ratio(plan["reward_risk"])))
     out.append("  Flat by       {} ET, win or lose: no overnight hold".format(plan["flat_by"]))
     out.append(
         "Set before the entry. If price hits the stop, you are out; never move it further away."
     )
     out.append(NOTE)
+    if rate is not None:
+        out.append(_fx.note(rate))
     return out
 
 
-def write_plan_report(output_dir, plan, warnings):
+def write_plan_report(output_dir, plan, warnings, rate=None):
     """reports/intraday_exit_plan_<TICKER>_<date>.json + .md. Returns (json_path, md_path)."""
     stem = "intraday_exit_plan_{}_{}".format(plan["symbol"].replace(".", "-"), plan["date"])
     os.makedirs(output_dir, exist_ok=True)
@@ -814,7 +843,7 @@ def write_plan_report(output_dir, plan, warnings):
         fh.write("\n")
     lines = (
         ["# Intraday Exit Plan: {} {}".format(plan["symbol"], plan["date"]), "", "```text"]
-        + describe(plan)
+        + describe(plan, rate)
         + ["```"]
     )
     if warnings:
@@ -831,14 +860,15 @@ def write_plan_report(output_dir, plan, warnings):
 
 def cmd_plan(a):
     now = parse_now(a.now)
-    plan, warnings = build_plan(a, now)
+    rate = fx_rate(a, offline=bool(a.offline))  # once per run; --offline never fetches
+    plan, warnings = build_plan(a, now, rate)
     written = None
     if not a.no_write:
-        written = write_plan_report(a.output_dir, plan, warnings)
+        written = write_plan_report(a.output_dir, plan, warnings, rate)
     if a.json:
         print(json.dumps(dict(plan, warnings=warnings), indent=2))
         return 0
-    for line in describe(plan):
+    for line in describe(plan, rate):
         print(line)
     for w in warnings:
         print("Note: " + w)
@@ -874,8 +904,10 @@ def cmd_show(a):
     if a.json:
         print(json.dumps(plan, indent=2))
         return 0
+    rate = fx_rate(a)
     for line in describe(
-        dict({"setup": "orb", "interval": "5m", "stop_label": "", "target_label": ""}, **plan)
+        dict({"setup": "orb", "interval": "5m", "stop_label": "", "target_label": ""}, **plan),
+        rate,
     ):
         print(line)
     today = to_eastern(parse_now(a.now)).date().isoformat()
@@ -925,6 +957,7 @@ def main(argv=None):
     p.add_argument("--now", help='pretend it is this New York time, e.g. "2026-10-19 10:15"')
     p.add_argument("--no-write", action="store_true", help="do not write the plan report")
     p.add_argument("--json", action="store_true")
+    _fx.add_cli_flags(p)
     p = sub.add_parser("show", help="print the current plan")
     p.add_argument(
         "--plan", help="plan report (default: the newest reports/intraday_exit_plan_*.json)"
@@ -932,6 +965,7 @@ def main(argv=None):
     p.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR)
     p.add_argument("--now")
     p.add_argument("--json", action="store_true")
+    _fx.add_cli_flags(p)
     a = ap.parse_args(argv)
     if not a.cmd:
         ap.print_help()

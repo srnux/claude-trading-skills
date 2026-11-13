@@ -54,7 +54,11 @@ It refuses a stop at or above the entry, a target at or below it, and a stop too
 
 Replay it with `intraday-time-machine`, then size it with `position-sizer --intraday-plan`. Offer `intraday-alerts` for the stop, the target and the flat-by time.
 
-Flags: `--stop or-mid|or-low|price:X|pct:X|atr:K`, `--target 2R|1R|1.5R|price:X`, `--flat-by HH:MM`, `--min-reward-risk` (1.0, warns only), `--date`, `--time`, `--entry-bar`, `--interval`, `--offline FILE`, `--now`, `--output-dir` (reports/), `--no-write`, `--json`. `show` prints the newest plan.
+Flags: `--stop or-mid|or-low|price:X|pct:X|atr:K`, `--target 2R|1R|1.5R|price:X`, `--flat-by HH:MM`, `--min-reward-risk` (1.0, warns only), `--date`, `--time`, `--entry-bar`, `--interval`, `--offline FILE`, `--now`, `--output-dir` (reports/), `--no-write`, `--json`, `--eurusd RATE`, `--no-eur`. `show` prints the newest plan (it takes `--eurusd` and `--no-eur` too).
+
+### Euros
+
+Every dollar price (entry, stop, target, risk a share) also shows euros, `$364.18 (€331.07)`, at the live EUR/USD rate (Yahoo `EURUSD=X`, fetched once a run, never with `--offline`), and the rate is printed once. `--eurusd RATE` pins it, `--no-eur` shows dollars only, and the `INTRADAY_EURUSD` environment variable (`off` or a rate) does the same. Without a rate the plan is dollars only. The plan math stays in dollars; euros are display only. Read euro prices back next to the dollar ones, and say broker EUR quotes from European venues can differ by a few cents.
 
 ## Output Format
 
@@ -66,8 +70,12 @@ Flags: `--stop or-mid|or-low|price:X|pct:X|atr:K`, `--target 2R|1R|1.5R|price:X`
  "opening_range": {"high": 362.18, "low": 354.47, "minutes": 15},
  "stop": 358.32, "stop_rule": "or_mid", "stop_label": "opening-range midpoint",
  "target": 370.04, "target_r": 1.0, "target_label": "1R (one times the risk)",
- "risk_per_share": 5.86, "reward_risk": 1.0, "flat_by": "15:55"}
+ "risk_per_share": 5.86, "reward_risk": 1.0, "flat_by": "15:55",
+ "entry_eur": 331.07, "stop_eur": 325.75, "target_eur": 336.4, "risk_per_share_eur": 5.33,
+ "fx": {"eurusd": 1.1, "as_of": "2026-10-19T14:15:00Z", "source": "pinned"}}
 ```
+
+The `*_eur` fields sit next to their dollar fields and `fx` names the rate; both are null without a rate. The dollar fields never change, so `intraday-time-machine`, `position-sizer --intraday-plan` and `intraday-alerts` read the plan as before.
 
 Exit code 0 = a plan, 1 = refused or an error, 2 = NYSE calendar dependency missing.
 
