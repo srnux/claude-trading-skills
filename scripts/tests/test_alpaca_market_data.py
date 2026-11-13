@@ -358,8 +358,9 @@ def test_garp_history_prefers_alpaca(alpaca_env, monkeypatch, tmp_path):
     path = REPO_ROOT / GARP_CLIENT
     mod = _load_file(path, "_alp_client_garp")
     client = mod.FMPClient(
-        api_key="test_key", cache_path=tmp_path / "c.sqlite3"
-    )  # pragma: allowlist secret
+        api_key="test_key",  # pragma: allowlist secret
+        cache_path=tmp_path / "c.sqlite3",
+    )
     assert client._alpaca is not None
 
     class _Fake:

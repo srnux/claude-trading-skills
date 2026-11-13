@@ -558,8 +558,12 @@ python3 skills/position-sizer/scripts/position_sizer.py \
   --account-size 100000 --risk-pct 1.0 \
   --max-position-pct 10 --max-sector-pct 30 \
   --sector Technology --current-sector-exposure 22
+```
 
+<!-- exec: offline -->
+```bash
 # Intraday mode: one whole-share bracket order from an intraday-exit-planner plan
+# (needs the plan JSON that intraday-exit-planner writes, so it is not run in CI)
 python3 skills/position-sizer/scripts/position_sizer.py \
   --intraday-plan reports/intraday_exit_plan_TSLA_2026-10-19.json \
   --account-size 5000 --max-loss-usd 50 \

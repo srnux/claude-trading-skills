@@ -303,6 +303,7 @@ Both commands must exit `0`. Present the self-contained ZIP together with the re
 
 **Scripts:**
 
+- `skills/us-undervalued-growth-screener/scripts/_alpaca_data.py`
 - `skills/us-undervalued-growth-screener/scripts/build_discovery_pool.py`
 - `skills/us-undervalued-growth-screener/scripts/build_provider_prefilter_pool.py`
 - `skills/us-undervalued-growth-screener/scripts/bundle_run_artifacts.py`
