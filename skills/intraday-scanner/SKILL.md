@@ -61,7 +61,11 @@ Say how many usable charts broke their range and when. A later hit is closer to 
 
 The user picks one chart. Never pick for them. Check its news first (`market-news-analyst`), then time the entry with `intraday-entry-timer`.
 
-Useful flags: `--min-price` (default 5), `--min-volume` (daily 1,000,000, orb 0), `--or-minutes` (15), `--max-confirm` (200, 0 = all), `--until` (15:30, no new entries after), `--now "2026-10-19 10:15"` to pin the New York clock, `--offline PATH` to replay saved Yahoo files, `--no-write`, `--json`. Exit code 0 when the scan found something, 1 when it found nothing or could not run, 2 when the NYSE calendar dependency is missing.
+Useful flags: `--min-price` (default 5), `--min-volume` (daily 1,000,000, orb 0), `--or-minutes` (15), `--max-confirm` (200, 0 = all), `--until` (15:30, no new entries after), `--now "2026-10-19 10:15"` to pin the New York clock, `--offline PATH` to replay saved Yahoo files, `--no-write`, `--json`, `--eurusd RATE`, `--no-eur`. Exit code 0 when the scan found something, 1 when it found nothing or could not run, 2 when the NYSE calendar dependency is missing.
+
+### Euros
+
+Every dollar price in the hits (price, opening-range low and high) is also shown in euros, e.g. `$364.18 (€331.07)`, at the live EUR/USD rate (Yahoo `EURUSD=X`, fetched once per run, unofficial and can lag). One line per run (terminal and `.md`) names the rate used. `--eurusd RATE` pins the rate (dollars per euro), `--no-eur` shows dollars only, and the env var `INTRADAY_EURUSD` (`off` or a rate) overrides the live fetch. `--offline` never fetches a rate. When no rate is available, it prints dollars only. Filter thresholds (`price >= $5`) stay in dollars. Broker EUR quotes from European venues can differ by a few cents.
 
 ## Output Format
 
@@ -75,10 +79,14 @@ Each scan writes a JSON + Markdown pair to `reports/`:
   "created_by": "intraday-scanner", "mode": "orb", "as_of": "2026-10-19 10:15 ET",
   "universe": 234, "scanned": 231, "failed": 1, "unconfirmed": 0, "source": "yahoo",
   "or_minutes": 15, "interval": "5m", "filters": {"min_price": 0.0, "min_volume": 0},
-  "hits": [{"symbol": "TSLA", "setups": ["orb"], "price": 364.18, "at": "10:15 AM", "bar_start": "10:10",
-            "bar_index": 8, "or_high": 362.18, "or_low": 354.47, "pct_over": 0.55}]
+  "fx": {"eurusd": 1.1, "as_of": "2026-10-19T14:15:02Z", "source": "pinned"},
+  "hits": [{"symbol": "TSLA", "setups": ["orb"], "price": 364.18, "price_eur": 331.07, "at": "10:15 AM",
+            "bar_start": "10:10", "bar_index": 8, "or_high": 362.18, "or_high_eur": 329.25,
+            "or_low": 354.47, "or_low_eur": 322.25, "pct_over": 0.55}]
 }
 ```
+
+The dollar fields never change (`intraday-entry-timer` reads the hits). `price_eur` (orb also `or_high_eur`, `or_low_eur`) sits next to each dollar price, and `fx` names the rate; all are `null` without a rate. Daily hits get `price_eur` the same way.
 
 `intraday-entry-timer watchlist` reads `hits[].symbol` from the newest report.
 

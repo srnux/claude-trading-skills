@@ -57,7 +57,11 @@ Run it every few minutes from a scheduled task or `/loop`. Each run fetches only
 
 Tell the user what rang in one line each. A stop or target alert means the bracket order has probably filled: check the position with `portfolio-manager`. "Flat by close" means close anything still open. The user sends that sell at the broker after `pre-trade-discipline-gate`. Never act for them.
 
-Other commands: `clock` (is the NYSE open, next open), `quote TSLA KO --write` (delayed quotes), `list`, `reset <id>`. Flags: `--source yahoo|stooq`, `--offline DIR`, `--now "2026-10-19 15:55"` (New York time), `--json`. Read `references/alert_rules.md` for rule types, quotes and the clock.
+Other commands: `clock` (is the NYSE open, next open), `quote TSLA KO --write` (delayed quotes), `list`, `reset <id>`. Flags: `--source yahoo|stooq`, `--offline DIR`, `--now "2026-10-19 15:55"` (New York time), `--json`, `--eurusd RATE`, `--no-eur`.
+
+### Euro display
+
+`quote`, `check`, `add` and `list` show every dollar price with its euro value, `$366.48 (€333.16)`, so the user can compare with a euro broker. The EUR/USD rate is fetched once per run from Yahoo (`EURUSD=X`, free, can lag) and named in one line under the output. `--eurusd 1.1056` pins the rate, `--no-eur` shows dollars only, and the environment variable `INTRADAY_EURUSD` (`off` or a rate) does the same for every run. `--offline` never fetches a rate. If the fetch fails, the output is dollars only. Rule levels in `alerts.json` stay in US dollars: they are compared with US-dollar quotes. Pass the euro values on as approximate: a broker's euro quote from a European venue can differ by a few cents. Read `references/alert_rules.md` for rule types, quotes and the clock.
 
 ## Output Format
 
@@ -68,6 +72,8 @@ State lives in `state/intraday/` (git-ignored):
 | `state/intraday/alerts.json` | the rules (`assets/alerts.example.json` is a complete example) |
 | `state/intraday/alerts_state.json` | which rules rang and when, so each rings once |
 | `state/intraday/prices.json` | the latest quotes with their quote time, merged in. `position-sizer --intraday-plan` can read a fresh price from it |
+
+With `--json`, `quote` adds `price_eur` and `prev_close_eur` to each quote, and `check` adds `quotes_eur`; both add a top-level `fx` block (`eurusd`, `as_of`, `source`). Without a rate the euro fields and `fx` are `null`. The state files stay in US dollars.
 
 ## Example: TSLA on Monday 2026-10-19
 

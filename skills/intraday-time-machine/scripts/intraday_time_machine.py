@@ -61,6 +61,12 @@ Data: https://query2.finance.yahoo.com/v8/finance/chart/<T>?range=60d&interval=5
 (unofficial and free, can lag; falls back to query1 on 429 or 5xx).
 --offline FILE reads a saved chart JSON (.json or .json.gz) instead.
 Times are New York (ET) wall-clock; --now "2026-10-19 10:15" pins the clock.
+
+Euros: the plan levels and the prices at --until also show euros, "$364.18
+(€331.07)", at the live EUR/USD rate (Yahoo EURUSD=X, fetched once per run).
+--eurusd RATE pins it, --no-eur shows dollars only, INTRADAY_EURUSD=off|RATE does
+the same from the environment; an --offline replay never fetches a rate. Odds,
+R and percentages do not change. The chart's price axis stays in dollars.
 """
 
 import argparse
@@ -80,6 +86,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+import _fx
 import _market_calendar
 
 UA = "Mozilla/5.0 (compatible; claude-trading-skills intraday-time-machine)"
@@ -807,8 +814,11 @@ def verdict_notes(mc):
     return notes
 
 
-def time_machine(text, plan, now_utc, replays=10000, seed=19, window=2, until=None, source="yahoo"):
-    """Chart JSON text + a normalized plan -> the timemachine.json document."""
+def time_machine(
+    text, plan, now_utc, replays=10000, seed=19, window=2, until=None, source="yahoo", fx=None
+):
+    """Chart JSON text + a normalized plan -> the timemachine.json document.
+    fx (an _fx.FxRate or None) adds the fx block and the *_eur siblings."""
     if not 1 <= replays <= 1000000:
         raise TMError("--replays must be between 1 and 1,000,000")
     if not 0 <= window <= 10:
@@ -891,8 +901,12 @@ def time_machine(text, plan, now_utc, replays=10000, seed=19, window=2, until=No
         pool_to=sessions[-1][0],
         band_times=[clock24(OPEN_MIN + 5 * (j + 1)) for j in range(k, last + 1)],
     )
+    for key in ("median_close", "p5_close", "p95_close"):
+        mc[key + "_eur"] = _fx.eur(mc[key], fx)
     rule = resolve_rule(plan, entry_day)
     plan_out = {kk: v for kk, v in plan.items() if v is not None}
+    for key in ("entry", "stop", "target", "risk_per_share"):
+        plan_out[key + "_eur"] = _fx.eur(plan[key], fx)
     if rule:
         plan_out["stop_rule"] = rule["stop_rule"]
         history = history_replay(sessions, rule, last, plan["side"])
@@ -910,6 +924,7 @@ def time_machine(text, plan, now_utc, replays=10000, seed=19, window=2, until=No
         "created_by": "intraday-time-machine",
         "created_at": now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source": source,
+        "fx": _fx.to_json(fx),
         "data": {
             "symbol": msym or sym,
             "interval": "5m",
@@ -937,26 +952,42 @@ def pc(x):
     return "%.1f %%" % (100.0 * x)
 
 
+def doc_rate(doc):
+    """The FxRate saved in a result's fx block, or None."""
+    fx = doc.get("fx")
+    if not isinstance(fx, dict) or not fx.get("eurusd"):
+        return None
+    return _fx.FxRate(
+        rate=float(fx["eurusd"]), as_of=str(fx.get("as_of", "")), source=str(fx.get("source", ""))
+    )
+
+
+def money(x, fx):
+    """'364.18' without a rate (as before), '$364.18 (€331.07)' with one."""
+    return f"{x:.2f}" if fx is None else _fx.usd_eur(x, fx)
+
+
 def report(doc):
     p, m, h = doc["plan"], doc["mc"], doc["history"]
     long = p["side"] == "buy"
     until = clock12(int(m["until"][:2]) * 60 + int(m["until"][3:]))
     wd = WEEKDAYS[datetime.date.fromisoformat(p["date"]).weekday()]
     r = p["target_r"]
+    fx = doc_rate(doc)
     lines = [
         (
-            "{} {}, {} {}: entry {:.2f} at {} (bar {:d}), stop {:.2f}, target {:.2f} ({}R, risk {:.2f} a share).".format(
+            "{} {}, {} {}: entry {} at {} (bar {:d}), stop {}, target {} ({}R, risk {} a share).".format(
                 p["symbol"],
                 p["side"],
                 wd,
                 p["date"],
-                p["entry"],
+                money(p["entry"], fx),
                 p["entry_time"],
                 p["entry_bar"],
-                p["stop"],
-                p["target"],
+                money(p["stop"], fx),
+                money(p["target"], fx),
                 f"{r:g}",
-                p["risk_per_share"],
+                money(p["risk_per_share"], fx),
             )
         ),
         (
@@ -979,12 +1010,12 @@ def report(doc):
             )
         ),
         "",
-        "  Price at {}: median {:.2f}, 90 % of replays between {:.2f} and {:.2f}.".format(
-            until, m["median_close"], m["p5_close"], m["p95_close"]
+        "  Price at {}: median {}, 90 % of replays between {} and {}.".format(
+            until, money(m["median_close"], fx), money(m["p5_close"], fx), money(m["p95_close"], fx)
         ),
-        "  Average R: {:+.3f} (R = the {:.2f} risk: {}R at the target, -1R at the stop).".format(
+        "  Average R: {:+.3f} (R = the {} risk: {}R at the target, -1R at the stop).".format(
             m["avg_R"],
-            p["risk_per_share"],
+            money(p["risk_per_share"], fx),
             ("+{:g}".format(m["r_at_target"])),
         ),
         "",
@@ -1028,12 +1059,16 @@ def report(doc):
             )
         )
     lines.append(doc["note"] + (" Repeat this run with --seed {:d}.".format(m["seed"])))
+    if fx:
+        lines.append(_fx.note(fx))
     return lines
 
 
 def render_chart(doc, height=17):
-    """ASCII fan chart of the bands: one column per 5-min bar."""
+    """ASCII fan chart of the bands: one column per 5-min bar. The axis stays in dollars;
+    with a rate the entry, stop and target labels add their euro value and a last line names the rate."""
     p, m = doc["plan"], doc["mc"]
+    fx = doc_rate(doc)
     bands, times = m["bands"], m["band_times"]
     lo = min([b[0] for b in bands] + [p["stop"], p["target"]])
     hi = max([b[4] for b in bands] + [p["stop"], p["target"]])
@@ -1074,7 +1109,8 @@ def render_chart(doc, height=17):
             label, hi - r * step
         )
         left = (f"{price:9.2f} |") if (label or r in (0, height - 1)) else "          |"
-        out.append(left + "".join(grid[r]) + ("  " + label if label else ""))
+        tag = (label + (" " + _fx.eur_only(price, fx) if fx else "")) if label else ""
+        out.append(left + "".join(grid[r]) + ("  " + tag if tag else ""))
     axis = [" "] * len(bands)
     for j in sorted({0, len(bands) // 2, len(bands) - 1}):
         t = times[j]
@@ -1085,6 +1121,8 @@ def render_chart(doc, height=17):
     out.append("          +" + "-" * len(bands))
     out.append("           " + "".join(axis))
     out.append("* median   : middle half of the paths   . 90 % of the paths   - stop and target")
+    if fx:
+        out.append("Price axis in US dollars. " + _fx.note(fx))
     return out
 
 
@@ -1136,7 +1174,8 @@ def compute(a):
         text, source = read_offline(a.offline, plan["symbol"]), "offline"
     else:
         text, source = fetch_chart(plan["symbol"]), "yahoo"
-    return time_machine(text, plan, now, a.replays, a.seed, a.window, a.until, source)
+    fx = _fx.from_args(a, offline=bool(a.offline))  # once per run, never per replay
+    return time_machine(text, plan, now, a.replays, a.seed, a.window, a.until, source, fx)
 
 
 def cmd_run(a):
@@ -1173,6 +1212,13 @@ def cmd_chart(a):
             doc["mc"]["bands"]
         except (ValueError, KeyError, TypeError):
             raise TMError(f"{a.from_file} is not a time machine result")
+        # a saved result keeps its own rate unless --eurusd / the env var pins one or --no-eur drops it
+        env_off = os.environ.get(_fx.ENV_VAR, "").strip().lower() == "off"
+        pinned = _fx.from_args(a, offline=True)
+        if a.no_eur or (env_off and not a.eurusd):
+            doc["fx"] = None
+        elif pinned:
+            doc["fx"] = _fx.to_json(pinned)
     else:
         doc = compute(a)
     print("\n".join(render_chart(doc)))
@@ -1218,6 +1264,7 @@ def main(argv=None):
         p.add_argument(
             "--now", help='pretend it is this time ("2026-10-19 10:15" New York, or ISO with Z)'
         )
+        _fx.add_cli_flags(p)
 
     p = sub.add_parser("run", help="replay the plan: 10,000 simulated sessions plus the history")
     common(p)

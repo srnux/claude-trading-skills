@@ -15,7 +15,10 @@ the bracket order is a proposal in the shape of Alpaca's place_stock_order
 (prices and quantities as strings) for portfolio-manager, after
 pre-trade-discipline-gate and the user's explicit yes.
 
-Standard library only. Money math in integer cents.
+Standard library only. Money math in integer cents, in US dollars. With an
+EUR/USD rate (_fx) every dollar amount also shows euros, "$46.88 (€42.62)", and
+the result gains *_eur siblings plus "fx": display only, never fed back into
+the sizing.
 
 The sizing rules are adapted from trader-budget/size.py in day-trader-skill
 (https://github.com/Jakeschincariol/day-trader-skill), Copyright (c) 2026 Jake
@@ -25,10 +28,13 @@ Schincariol, MIT License (full text in this skill's ATTRIBUTION.md).
 from __future__ import annotations
 
 import datetime
+import functools
 import json
 import math
 import os
 from dataclasses import dataclass
+
+import _fx
 
 EPS = 1e-9
 FRESH_MINUTES = 15
@@ -186,6 +192,49 @@ def price_str(x: float) -> str:
     return f"{round_cent(x):.2f}"
 
 
+def price_eur(x: float, rate) -> str:
+    """358.32 -> "358.32 (€325.75)" with a rate, "358.32" without."""
+    text = price_str(x)
+    return f"{text} ({_fx.eur_only(x, rate)})" if rate is not None else text
+
+
+def rate_of(result: dict):
+    """The _fx.FxRate a result was sized with (its "fx" block), or None."""
+    fx = result.get("fx")
+    if not fx:
+        return None
+    return _fx.FxRate(
+        rate=float(fx["eurusd"]), as_of=fx.get("as_of", ""), source=fx.get("source", "")
+    )
+
+
+def _with_eur(d: dict, names: dict, rate) -> dict:
+    """d with a <name>_eur sibling right after each money field in names (null without a rate)."""
+    out = {}
+    for k, v in d.items():
+        out[k] = v
+        if k in names:
+            out[names[k]] = _fx.eur(v, rate)
+    return out
+
+
+PARAM_EUR = {
+    "entry_plan": "entry_plan_eur",
+    "sized_at": "sized_at_eur",
+    "stop_price": "stop_price_eur",
+    "target_price": "target_price_eur",
+    "risk_per_share": "risk_per_share_eur",
+    "account_size": "account_size_eur",
+    "max_loss_usd": "max_loss_eur",
+    "cash_buffer_usd": "cash_buffer_eur",
+}
+RESULT_EUR = {
+    "final_position_value": "final_position_value_eur",
+    "final_risk_dollars": "final_risk_eur",
+    "max_loss_at_stop": "max_loss_at_stop_eur",
+}
+
+
 # ---------------------------------------------------------------- sizing
 
 
@@ -252,6 +301,7 @@ def size_intraday(
     limit_price: float | None = None,
     current_price: float | None = None,
     today: str | None = None,
+    fx_rate=None,
 ) -> dict:
     """Pure function: one plan + the account limits -> the sizing result (a dict).
 
@@ -259,7 +309,9 @@ def size_intraday(
     current_price  a FRESH latest price. A market order is sized at the higher of it and the
                    plan's entry: a price that ran up means a bigger loss at the same stop.
     today          New York date YYYY-MM-DD. A plan for another day is refused.
+    fx_rate        an _fx.FxRate (or None): euros next to every dollar amount, display only.
     """
+    money = functools.partial(_fx.usd_eur, rate=fx_rate)  # "$50.00" or "$50.00 (€45.45)"
     if not isinstance(plan, dict):
         raise IntradaySizingError("the plan is not a JSON object")
     max_loss = _check_limits(limits)
@@ -330,6 +382,7 @@ def size_intraday(
     binding = next(c["type"] for c in constraints if c["max_shares"] == qty)
     for c in constraints:
         c["binding"] = c["type"] == binding
+        c["limit_eur"] = _fx.eur(c["limit_usd"], fx_rate)
     cost = round(qty * ref, 2)
     loss = round(qty * risk_c / 100.0, 2)
     reward_risk = round(reward_c / float(risk_c), 2)
@@ -398,6 +451,9 @@ def size_intraday(
         "max_loss_at_stop": loss if not refusal else 0.0,
         "refusal": refusal,
     }
+    result["parameters"] = _with_eur(result["parameters"], PARAM_EUR, fx_rate)
+    result = _with_eur(result, RESULT_EUR, fx_rate)
+    result["fx"] = _fx.to_json(fx_rate)
     result["bracket_order"] = bracket_order(result)
     return result
 
@@ -428,7 +484,8 @@ def bracket_order(result: dict) -> dict | None:
             "stop_loss_stop_price": price_str(p["stop_price"]),
             "why": (
                 f"{setup} on {p['symbol']}: {qty} shares, bound by your {words[result['binding_constraint']]} "
-                f"({qty} x {price_str(p['risk_per_share'])} = {money(result['max_loss_at_stop'])} at the stop)"
+                f"({qty} x {price_str(p['risk_per_share'])} = "
+                f"{_fx.usd_eur(result['max_loss_at_stop'], rate_of(result))} at the stop)"
             ),
             "plan": {
                 "entry": p["sized_at"],
@@ -448,13 +505,17 @@ def bracket_order(result: dict) -> dict | None:
 def markdown_lines(result: dict) -> list[str]:
     """The intraday part of the position sizer's Markdown report."""
     p = result["parameters"]
+    rate = rate_of(result)
+    note = ["", _fx.note(rate)] if rate is not None else []
     lines = [
         "## Intraday Plan",
         f"- **Trade:** {p['symbol']} buy, {SETUP_WORDS.get(p['setup'], p['setup'] or 'setup')}, "
         f"{p['date']} {p['entry_time']}".rstrip(),
-        f"- **Sized at:** {price_str(p['sized_at'])} ({p['sized_from'].replace('_', ' ')})",
-        f"- **Stop:** {price_str(p['stop_price'])}  **Target:** {price_str(p['target_price'])}",
-        f"- **Risk a share:** {price_str(p['risk_per_share'])}  **Reward:risk:** {p['reward_risk']:.2f}",
+        f"- **Sized at:** {price_eur(p['sized_at'], rate)} ({p['sized_from'].replace('_', ' ')})",
+        f"- **Stop:** {price_eur(p['stop_price'], rate)}  "
+        f"**Target:** {price_eur(p['target_price'], rate)}",
+        f"- **Risk a share:** {price_eur(p['risk_per_share'], rate)}  "
+        f"**Reward:risk:** {p['reward_risk']:.2f}",
         f"- **Flat by:** {p['flat_by'] or 'not set'} New York",
         "",
         "## Limits (whole shares, the smallest one wins)",
@@ -469,11 +530,12 @@ def markdown_lines(result: dict) -> list[str]:
     order = result.get("bracket_order")
     if order is None:
         lines.append(f"No order: {result['refusal']}")
-        return lines
+        return lines + note
     qty = result["final_recommended_shares"]
     lines += [
-        f"- **Shares:** {qty} = {money(result['final_position_value'])}",
-        f"- Max loss at the stop: {qty} x {price_str(p['risk_per_share'])} = {money(result['max_loss_at_stop'])}",
+        f"- **Shares:** {qty} = {_fx.usd_eur(result['final_position_value'], rate)}",
+        f"- Max loss at the stop: {qty} x {price_str(p['risk_per_share'])} = "
+        f"{_fx.usd_eur(result['max_loss_at_stop'], rate)}",
         "- A stop is an order, not a promise: in a fast market it can fill below the stop.",
         "",
         "## Proposed Bracket Order",
@@ -489,4 +551,4 @@ def markdown_lines(result: dict) -> list[str]:
         ),
         f"- {order['why']}",
     ]
-    return lines
+    return lines + note

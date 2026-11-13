@@ -275,6 +275,9 @@ jobs:
       - name: Shared market calendar drift check
         run: python3 scripts/generate_market_calendar.py --check
 
+      - name: USD/EUR display helper drift check
+        run: python3 scripts/sync_fx.py --check
+
       - name: Packaged skill drift check
         run: python3 scripts/check_package_drift_for_changed_skills.py
 

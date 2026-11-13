@@ -756,8 +756,8 @@ class Cli(unittest.TestCase):
         self.assertIn("Close to a coin flip: target first 29.4 % vs stop first 25.5 %.", text)
         self.assertIn(
             "Wrote {} and {}.".format(
-                os.path.join("reports", os.path.basename(self.out)),
-                os.path.join("reports", os.path.basename(self.out)[:-5] + ".md"),
+                os.path.join(tm.DEFAULT_OUTPUT_DIR, os.path.basename(self.out)),
+                os.path.join(tm.DEFAULT_OUTPUT_DIR, os.path.basename(self.out)[:-5] + ".md"),
             ),
             text,
         )
@@ -937,3 +937,104 @@ class CalendarUnavailable(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EuroDisplay(unittest.TestCase):
+    """Plan levels and prices also show euros; odds, R and percentages do not change."""
+
+    @classmethod
+    def setUpClass(cls):
+        import _fx
+
+        cls.fx = _fx.FxRate(rate=1.1, as_of="2026-10-19T14:50:00Z", source="pinned")
+        cls.doc = machine(fx=cls.fx)
+        cls.usd = machine()
+
+    def test_json_fields(self):
+        d, p, m = self.doc, self.doc["plan"], self.doc["mc"]
+        self.assertEqual(
+            d["fx"], {"eurusd": 1.1, "as_of": "2026-10-19T14:50:00Z", "source": "pinned"}
+        )
+        self.assertEqual(
+            (p["entry_eur"], p["stop_eur"], p["target_eur"], p["risk_per_share_eur"]),
+            (331.07, 325.75, 336.4, 5.33),
+        )
+        self.assertEqual((p["entry"], p["stop"], p["target"]), (364.18, 358.32, 370.04))
+        self.assertEqual(
+            (m["median_close_eur"], m["p5_close_eur"], m["p95_close_eur"]), (331.24, 323.22, 339.58)
+        )
+        self.assertEqual(
+            (m["p_target"], m["avg_R"]), (self.usd["mc"]["p_target"], self.usd["mc"]["avg_R"])
+        )
+
+    def test_without_a_rate_the_eur_fields_are_null(self):
+        d = self.usd
+        self.assertIsNone(d["fx"])
+        self.assertIsNone(d["plan"]["entry_eur"])
+        self.assertIsNone(d["plan"]["target_eur"])
+        self.assertIsNone(d["mc"]["median_close_eur"])
+        self.assertNotIn("€", "\n".join(tm.report(d) + tm.render_chart(d)))
+
+    def test_the_text_report_shows_euros(self):
+        text = "\n".join(tm.report(self.doc))
+        for line in (
+            "entry $364.18 (€331.07) at 10:15 AM (bar 8), stop $358.32 (€325.75), "
+            "target $370.04 (€336.40) (1R, risk $5.86 (€5.33) a share)",
+            "median $364.36 (€331.24), 90 % of replays between $355.54 (€323.22) and $373.54 (€339.58)",
+            "target first   29.4 %",
+            "Average R: +0.034",
+            "1 € = $1.1000",
+        ):
+            self.assertIn(line, text)
+
+    def test_the_chart_keeps_its_dollar_axis_and_names_the_rate(self):
+        lines = tm.render_chart(self.doc)
+        self.assertTrue(
+            any(ln.startswith("   370.04 |") and ln.endswith("  target €336.40") for ln in lines)
+        )
+        self.assertTrue(
+            any(ln.startswith("   358.32 |") and ln.endswith("  stop €325.75") for ln in lines)
+        )
+        self.assertIn("1 € = $1.1000", lines[-1])
+
+    def test_cli_pin_offline_and_the_saved_chart(self):
+        d = tempfile.mkdtemp()
+        try:
+            base = ["run", "--offline", TSLA, "--now", NOW, "--replays", "300", "--output-dir", d]
+            base += ["--symbol", "TSLA", "--date", "2026-10-19", "--entry", "364.18"]
+            base += ["--stop", "358.32", "--target", "370.04", "--entry-time", "10:15 AM"]
+            code, text, err = run(base + ["--eurusd", "1.1"])
+            self.assertEqual(code, 0, err)
+            self.assertIn("entry $364.18 (€331.07)", text)
+            out = os.path.join(d, "intraday_timemachine_TSLA_2026-10-19")
+            with open(out + ".json", encoding="utf-8") as fh:
+                saved = json.load(fh)
+            self.assertEqual(saved["fx"]["eurusd"], 1.1)
+            self.assertEqual(saved["plan"]["stop_eur"], 325.75)
+            with open(out + ".md", encoding="utf-8") as fh:
+                self.assertIn("stop $358.32 (€325.75)", fh.read())
+            from unittest import mock
+
+            import _fx
+
+            # a saved result keeps its rate; INTRADAY_EURUSD=off (the test default) or --no-eur drops it
+            code, text, _ = run(["chart", "--from", out + ".json"])
+            self.assertNotIn("€", text)
+            with mock.patch.dict(os.environ, {"INTRADAY_EURUSD": ""}):
+                code, text, _ = run(["chart", "--from", out + ".json"])
+                self.assertIn("  target €336.40", text)
+                code, text, _ = run(["chart", "--from", out + ".json", "--no-eur"])
+                self.assertNotIn("€", text)
+            # an --offline replay never fetches a rate, even with the env var unset
+
+            def boom(url, timeout=10):
+                raise AssertionError("fetched over the network")
+
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("INTRADAY_EURUSD", None)
+                with mock.patch.object(_fx, "_http_get", boom):
+                    code, text, err = run(base + ["--json", "--no-write"])
+            self.assertEqual(code, 0, err)
+            self.assertIsNone(json.loads(text)["fx"])
+        finally:
+            shutil.rmtree(d)

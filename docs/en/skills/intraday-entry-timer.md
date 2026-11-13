@@ -102,7 +102,11 @@ Say the time and the price, and that nothing was placed. If the trigger is more 
 
 Hand off to `intraday-exit-planner` to set the stop and the target BEFORE anything is bought.
 
-Flags: `--setup orb|level`, `--or-minutes` (15), `--interval 5m|1m`, `--level PRICE`, `--min-volume-x X`, `--no-entries-before` (09:45), `--no-entries-after` (15:30), `--now "2026-10-19 10:15"` (New York time) to replay a day, `--offline PATH` (saved Yahoo chart JSON, `.json`/`.json.gz`, or a folder of `<TICKER>.json`), `--output-dir` (reports/), `--no-write`, `--json`. Read `references/entry_rules.md` for the full rule.
+Flags: `--setup orb|level`, `--or-minutes` (15), `--interval 5m|1m`, `--level PRICE`, `--min-volume-x X`, `--no-entries-before` (09:45), `--no-entries-after` (15:30), `--now "2026-10-19 10:15"` (New York time) to replay a day, `--offline PATH` (saved Yahoo chart JSON, `.json`/`.json.gz`, or a folder of `<TICKER>.json`), `--output-dir` (reports/), `--no-write`, `--json`, `--eurusd RATE`, `--no-eur`. Read `references/entry_rules.md` for the full rule.
+
+### Euros
+
+Every dollar price (trigger, level, opening range, last close) is also shown in euros, e.g. `$364.18 (€331.07)`, at the live EUR/USD rate (Yahoo `EURUSD=X`, fetched once per run, unofficial and can lag). One line per run names the rate used. `--eurusd RATE` pins the rate (dollars per euro), `--no-eur` shows dollars only, and the env var `INTRADAY_EURUSD` (`off` or a rate) overrides the live fetch. `--offline` never fetches a rate. When no rate is available, it prints dollars only. Broker EUR quotes from European venues can differ by a few cents: tell the user the euro figure is a conversion, not the venue's price. `watchlist` adds `PRICE €`, `LEVEL €` and `LAST €` columns.
 
 ---
 
@@ -114,5 +118,6 @@ Flags: `--setup orb|level`, `--or-minutes` (15), `--interval 5m|1m`, `--level PR
 
 **Scripts:**
 
+- `skills/intraday-entry-timer/scripts/_fx.py`
 - `skills/intraday-entry-timer/scripts/_market_calendar.py`
 - `skills/intraday-entry-timer/scripts/intraday_entry.py`
